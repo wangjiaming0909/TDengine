@@ -1620,7 +1620,7 @@ static void cliNoBatchDealReq(queue* wq, SCliThrd* pThrd) {
       pThrd->stopMsg = pMsg;
       continue;
     }
-    (*cliAsyncHandle[pMsg->type])(pMsg, pThrd);
+    (*cliAsyncHandle[pMsg->type])(pMsg, pThrd); //cliHandleReq
 
     count++;
   }
@@ -2388,7 +2388,7 @@ int cliAppCb(SCliConn* pConn, STransMsg* pResp, SCliMsg* pMsg) {
       pTransInst->cfp(pTransInst->parent, pResp, &pCtx->epSet);
     } else {
       if (!cliIsEpsetUpdated(pResp->code, pCtx)) {
-        pTransInst->cfp(pTransInst->parent, pResp, NULL);
+        pTransInst->cfp(pTransInst->parent, pResp, NULL); // processMsgFromServer this fp is set in func openTransporter
       } else {
         pTransInst->cfp(pTransInst->parent, pResp, &pCtx->epSet);
       }
@@ -2515,7 +2515,7 @@ int transSendRequest(void* shandle, const SEpSet* pEpSet, STransMsg* pReq, STran
   STraceId* trace = &pReq->info.traceId;
   tGDebug("%s send request at thread:%08" PRId64 ", dst:%s:%d, app:%p", transLabel(pTransInst), pThrd->pid,
           EPSET_GET_INUSE_IP(&pCtx->epSet), EPSET_GET_INUSE_PORT(&pCtx->epSet), pReq->info.ahandle);
-  if (0 != transAsyncSend(pThrd->asyncPool, &(cliMsg->q))) {
+  if (0 != transAsyncSend(pThrd->asyncPool, &(cliMsg->q))) { // cliAsyncCb
     destroyCmsg(cliMsg);
     transReleaseExHandle(transGetInstMgt(), (int64_t)shandle);
     return -1;

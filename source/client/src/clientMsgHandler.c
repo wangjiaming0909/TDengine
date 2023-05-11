@@ -188,7 +188,7 @@ int32_t processCreateDbRsp(void* param, SDataBuf* pMsg, int32_t code) {
   }
 
   if (pRequest->body.queryFp) {
-    pRequest->body.queryFp(pRequest->body.param, pRequest, code);
+    pRequest->body.queryFp(pRequest->body.param, pRequest, code); // queryFp is the cb after handling the sql: syncQueryFn, set by taosAsyncQueryImpl
   } else {
     tsem_post(&pRequest->body.rspSem);
   }

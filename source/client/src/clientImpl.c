@@ -1406,7 +1406,7 @@ int32_t doProcessMsgFromServer(void* param) {
     }
   }
 
-  pSendInfo->fp(pSendInfo->param, &buf, pMsg->code);
+  pSendInfo->fp(pSendInfo->param, &buf, pMsg->code); // processCreateDbRsp, processConnectRsp, fp is set by func buildMsgInfoImpl
 
   if (pTscObj) {
     taosReleaseRef(clientReqRefPool, pSendInfo->requestObjRefId);
