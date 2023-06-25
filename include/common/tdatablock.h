@@ -231,6 +231,7 @@ SSDataBlock* createOneDataBlock(const SSDataBlock* pDataBlock, bool copyData);
 SSDataBlock* createSpecialDataBlock(EStreamType type);
 
 SSDataBlock* blockCopyOneRow(const SSDataBlock* pDataBlock, int32_t rowIdx);
+int32_t      blockCopyOneRowOut(const SSDataBlock* pDataBlock, SSDataBlock* dst, int32_t rowIdx);
 int32_t      blockDataAppendColInfo(SSDataBlock* pBlock, SColumnInfoData* pColInfoData);
 
 SColumnInfoData  createColumnInfoData(int16_t type, int32_t bytes, int16_t colId);

@@ -15,7 +15,8 @@
 
 #include <gtest/gtest.h>
 #include <tglobal.h>
-#include <tsort.h>
+#include "theap.h"
+#include "tsort.h"
 #include <iostream>
 
 #pragma GCC diagnostic push
@@ -33,6 +34,10 @@
 #include "tdef.h"
 #include "trpc.h"
 #include "tvariant.h"
+
+TEST(jiaming, a) {
+  testHeapSort();
+}
 
 namespace {
 typedef struct {
@@ -193,6 +198,8 @@ int32_t docomp(const void* p1, const void* p2, void* param) {
 
   return 0;
 }
+
+
 }  // namespace
 
 #if 0
@@ -392,5 +399,99 @@ TEST(testCase, ordered_merge_sort_Test) {
 }
 
 #endif
+
+typedef struct A {
+  HeapNode node;
+  int a;
+}A;
+
+int cp(const struct HeapNode* a, const struct HeapNode* b) {
+  return ((A*)a)->a < ((A*)b)->a;
+}
+
+void test() {
+  int64_t start = taosGetTimestampUs();
+  Heap* h = heapCreate(cp);
+  int64_t i = 0;
+  while (i < 100000) {
+    A* a = (A*)taosMemoryCalloc(1, sizeof(A));
+    a->a = taosRand();
+    heapInsert(h, &a->node);
+    if (heapSize(h) > 1000) {
+      a = (A*)heapMin(h);
+      heapDequeue(h);
+      taosMemoryFree(a);
+    }
+    i++;
+  }
+
+  while (heapSize(h) > 0) {
+    A* a = (A*)heapMin(h);
+    //printf("%d ", a->a);
+    heapDequeue(h);
+    taosMemoryFree(a);
+  }
+  heapDestroy(h);
+  printf("used: %ld\n", taosGetTimestampUs() - start);
+}
+bool cp2(void *a, void* b, void*) {
+  return ((A*)a)->a < ((A*)b)->a;
+}
+void test2() {
+  int64_t start = taosGetTimestampUs();
+  PriorityQueue* pq = createPriorityQueue(cp2, 0);
+  int64_t i = 0;
+  PriorityQueueNode node;
+  taosArrayEnsureCap(pq->container, 1000);
+  while (i < 100000) {
+    A* a = (A*)taosMemoryCalloc(1, sizeof(A));
+    a->a = taosRand();
+    node.data = a;
+    taosPQPush(pq, &node);
+    if (taosPQSize(pq) > 1000) {
+      PriorityQueueNode* n = taosPQTop(pq);
+      taosMemoryFree(n->data);
+      taosPQPop(pq);
+    }
+    i++;
+  }
+  while (taosPQSize(pq) > 0) {
+    PriorityQueueNode* n = taosPQTop(pq);
+    //printf("%d ", ((A*)n->data)->a);
+    taosMemoryFree(n->data);
+    taosPQPop(pq);
+  }
+  destroyPriorityQueue(pq);
+  printf("used: %ld\n", taosGetTimestampUs() - start);
+}
+
+void test3() {
+  int64_t start = taosGetTimestampUs();
+  BoundedQueue* bq = createBoundedQueue(1000, cp2, 0);
+  int64_t i = 0;
+  PriorityQueueNode node;
+  while (i < 100000) {
+    A* a = (A*)taosMemoryCalloc(1, sizeof(A));
+    a->a = taosRand();
+    node.data = a;
+    taosBQPush(bq, &node);
+    i++;
+  }
+  while (bq->queue->container->size > 0) {
+    PriorityQueueNode* n = taosBQTop(bq);
+    //printf("%d ", ((A*)n->data)->a);
+    taosMemoryFree(n->data);
+    taosBQPop(bq);
+  }
+  destroyBoundedQueue(bq);
+  printf("used: %ld\n", taosGetTimestampUs() - start);
+}
+
+TEST(jiaming, b) {
+  test();
+  test2();
+  test3();
+}
+
 
 #pragma GCC diagnostic pop

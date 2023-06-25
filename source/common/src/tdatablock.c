@@ -1446,40 +1446,46 @@ SSDataBlock* createSpecialDataBlock(EStreamType type) {
   return pBlock;
 }
 
+int32_t blockCopyOneRowOut(const SSDataBlock* pDataBlock, SSDataBlock* dst, int32_t rowIdx) {
+  dst->info = pDataBlock->info;
+  dst->info.rows = 0;
+  dst->info.capacity = 0;
+
+  int32_t code = blockDataEnsureCapacity(dst, 1);
+  if (code != TSDB_CODE_SUCCESS) {
+    return code;
+  }
+
+  size_t numOfCols = taosArrayGetSize(pDataBlock->pDataBlock);
+  for (int32_t i = 0; i < numOfCols; ++i) {
+    SColumnInfoData* p = taosArrayGet(pDataBlock->pDataBlock, i);
+    SColumnInfoData  colInfo = {.hasNull = true, .info = p->info};
+    blockDataAppendColInfo(dst, &colInfo);
+  }
+
+  for (int32_t i = 0; i < numOfCols; ++i) {
+    SColumnInfoData* pDst = taosArrayGet(dst->pDataBlock, i);
+    SColumnInfoData* pSrc = taosArrayGet(pDataBlock->pDataBlock, i);
+    void*            pData = colDataGetData(pSrc, rowIdx);
+    bool             isNull = colDataIsNull(pSrc, pDataBlock->info.rows, rowIdx, NULL);
+    colDataSetVal(pDst, 0, pData, isNull);
+  }
+  dst->info.rows = 1;
+  return TSDB_CODE_SUCCESS;
+}
+
 SSDataBlock* blockCopyOneRow(const SSDataBlock* pDataBlock, int32_t rowIdx) {
   if (pDataBlock == NULL) {
     return NULL;
   }
 
   SSDataBlock* pBlock = createDataBlock();
-  pBlock->info = pDataBlock->info;
-  pBlock->info.rows = 0;
-  pBlock->info.capacity = 0;
-
-  size_t numOfCols = taosArrayGetSize(pDataBlock->pDataBlock);
-  for (int32_t i = 0; i < numOfCols; ++i) {
-    SColumnInfoData* p = taosArrayGet(pDataBlock->pDataBlock, i);
-    SColumnInfoData  colInfo = {.hasNull = true, .info = p->info};
-    blockDataAppendColInfo(pBlock, &colInfo);
-  }
-
-  int32_t code = blockDataEnsureCapacity(pBlock, 1);
-  if (code != TSDB_CODE_SUCCESS) {
+  int32_t code = blockCopyOneRowOut(pDataBlock, pBlock, rowIdx);
+  if (TSDB_CODE_SUCCESS != code) {
     terrno = code;
     blockDataDestroy(pBlock);
     return NULL;
   }
-
-  for (int32_t i = 0; i < numOfCols; ++i) {
-    SColumnInfoData* pDst = taosArrayGet(pBlock->pDataBlock, i);
-    SColumnInfoData* pSrc = taosArrayGet(pDataBlock->pDataBlock, i);
-    void*            pData = colDataGetData(pSrc, rowIdx);
-    bool             isNull = colDataIsNull(pSrc, pDataBlock->info.rows, rowIdx, NULL);
-    colDataSetVal(pDst, 0, pData, isNull);
-  }
-
-  pBlock->info.rows = 1;
-
   return pBlock;
 }
 

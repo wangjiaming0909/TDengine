@@ -33,3 +33,20 @@ ENDIF ()
 #         PUBLIC "${TD_SOURCE_DIR}/include/common"
 #         PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inc"
 # )
+
+ADD_EXECUTABLE(sortTests sortTests.cpp)
+TARGET_LINK_LIBRARIES(
+  sortTests
+  PRIVATE os util common executor gtest_main
+)
+TARGET_INCLUDE_DIRECTORIES(sortTests
+  PUBLIC "${TD_SOURCE_DIR}/include/libs/executor/"
+  PRIVATE "${TD_SOURCE_DIR}/include/libs/qcom/"
+  PRIVATE "${TD_SOURCE_DIR}/include/libs/function/"
+  PRIVATE "${TD_SOURCE_DIR}/include/libs/index/"
+  PRIVATE "${TD_SOURCE_DIR}/include/libs/nodes/"
+  PRIVATE "${TD_SOURCE_DIR}/include/libs/planner/"
+  PRIVATE "${TD_SOURCE_DIR}/include/libs/scalar/"
+  PRIVATE "${TD_SOURCE_DIR}/include/libs/transport/"
+  PRIVATE "${TD_SOURCE_DIR}/source/libs/executor/inc"
+)

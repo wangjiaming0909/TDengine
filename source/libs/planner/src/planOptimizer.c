@@ -123,7 +123,7 @@ static void optSetParentOrder(SLogicNode* pNode, EOrder order, SLogicNode* pNode
   pNode->inputTsOrder = order;
   switch (nodeType(pNode)) {
     // for those nodes that will change the order, stop propagating
-    //case QUERY_NODE_LOGIC_PLAN_WINDOW:
+    // case QUERY_NODE_LOGIC_PLAN_WINDOW:
     case QUERY_NODE_LOGIC_PLAN_JOIN:
     case QUERY_NODE_LOGIC_PLAN_AGG:
     case QUERY_NODE_LOGIC_PLAN_SORT:
@@ -769,8 +769,9 @@ static bool pushDownCondOptIsColEqualOnCond(SJoinLogicNode* pJoin, SNode* pCond)
   }
   SColumnNode* pLeft = (SColumnNode*)(pOper->pLeft);
   SColumnNode* pRight = (SColumnNode*)(pOper->pRight);
-  //TODO: add cast to operator and remove this restriction of optimization
-  if (pLeft->node.resType.type != pRight->node.resType.type || pLeft->node.resType.bytes != pRight->node.resType.bytes) {
+  // TODO: add cast to operator and remove this restriction of optimization
+  if (pLeft->node.resType.type != pRight->node.resType.type ||
+      pLeft->node.resType.bytes != pRight->node.resType.bytes) {
     return false;
   }
   SNodeList* pLeftCols = ((SLogicNode*)nodesListGetNode(pJoin->node.pChildren, 0))->pTargets;
@@ -2575,7 +2576,7 @@ static void tagScanOptCloneAncestorSlimit(SLogicNode* pTableScanNode) {
 
   SLogicNode* pNode = tagScanOptFindAncestorWithSlimit(pTableScanNode);
   if (NULL != pNode) {
-    //TODO: only set the slimit now. push down slimit later
+    // TODO: only set the slimit now. push down slimit later
     pTableScanNode->pSlimit = nodesCloneNode(pNode->pSlimit);
     ((SLimitNode*)pTableScanNode->pSlimit)->limit += ((SLimitNode*)pTableScanNode->pSlimit)->offset;
     ((SLimitNode*)pTableScanNode->pSlimit)->offset = 0;
@@ -2629,8 +2630,24 @@ static int32_t tagScanOptimize(SOptimizeContext* pCxt, SLogicSubplan* pLogicSubp
 }
 
 static bool pushDownLimitOptShouldBeOptimized(SLogicNode* pNode) {
-  if (NULL == pNode->pLimit || 1 != LIST_LENGTH(pNode->pChildren) ||
-      QUERY_NODE_LOGIC_PLAN_SCAN != nodeType(nodesListGetNode(pNode->pChildren, 0))) {
+  if (NULL == pNode->pLimit || 1 != LIST_LENGTH(pNode->pChildren)) {
+    return false;
+  }
+
+  SLogicNode* pChild = (SLogicNode*)nodesListGetNode(pNode->pChildren, 0);
+  if (QUERY_NODE_LOGIC_PLAN_SORT == nodeType(pChild)) {
+    SLimitNode* pChildLimit = (SLimitNode*)(pChild->pLimit);
+    SLimitNode* pParentLimit = (SLimitNode*)(pNode->pLimit);
+    // if we have pushed down, we skip it
+    if (pChildLimit && pChildLimit->limit == pParentLimit->limit && pChildLimit->offset == pParentLimit->offset &&
+        pChildLimit->type == pParentLimit->type)
+      return false;
+  } else if (QUERY_NODE_LOGIC_PLAN_SCAN == nodeType(pChild)) {
+    // if sort node --> scan node, we skip push down limit
+    if (QUERY_NODE_LOGIC_PLAN_SORT == nodeType(pNode)) {
+      return false;
+    }
+  } else {
     return false;
   }
   return true;
@@ -2644,8 +2661,13 @@ static int32_t pushDownLimitOptimize(SOptimizeContext* pCxt, SLogicSubplan* pLog
 
   SLogicNode* pChild = (SLogicNode*)nodesListGetNode(pNode->pChildren, 0);
   nodesDestroyNode(pChild->pLimit);
-  pChild->pLimit = pNode->pLimit;
-  pNode->pLimit = NULL;
+  if (QUERY_NODE_LOGIC_PLAN_SORT == nodeType(pChild)) {
+    // for sort nodes, we do not clear parents' limit info
+    pChild->pLimit = nodesCloneNode(pNode->pLimit);
+  } else {
+    pChild->pLimit = pNode->pLimit;
+    pNode->pLimit = NULL;
+  }
   pCxt->optimized = true;
 
   return TSDB_CODE_SUCCESS;
@@ -2898,7 +2920,7 @@ static SSortLogicNode* sortNonPriKeySatisfied(SLogicNode* pNode) {
   if (sortPriKeyOptIsPriKeyOrderBy(pSort->pSortKeys)) {
     return NULL;
   }
-  SNode* pSortKeyNode = NULL, *pSortKeyExpr = NULL;
+  SNode *pSortKeyNode = NULL, *pSortKeyExpr = NULL;
   FOREACH(pSortKeyNode, pSort->pSortKeys) {
     pSortKeyExpr = ((SOrderByExprNode*)pSortKeyNode)->pExpr;
     switch (nodeType(pSortKeyExpr)) {
@@ -2931,7 +2953,7 @@ static int32_t sortNonPriKeyOptimize(SOptimizeContext* pCxt, SLogicSubplan* pLog
   optFindEligibleNode(pLogicSubplan->pNode, sortNonPriKeyShouldOptimize, pNodeList);
   SNode* pNode = NULL;
   FOREACH(pNode, pNodeList) {
-    SSortLogicNode* pSort = (SSortLogicNode*)pNode;
+    SSortLogicNode*   pSort = (SSortLogicNode*)pNode;
     SOrderByExprNode* pOrderByExpr = (SOrderByExprNode*)nodesListGetNode(pSort->pSortKeys, 0);
     pSort->node.outputTsOrder = pOrderByExpr->order;
     optSetParentOrder(pSort->node.pParent, pOrderByExpr->order, NULL);
