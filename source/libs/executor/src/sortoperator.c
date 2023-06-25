@@ -30,6 +30,7 @@ typedef struct SSortOperatorInfo {
   uint64_t       sortElapsed;  // sort elapsed time, time to flush to disk not included.
   SLimitInfo     limitInfo;
   uint64_t       maxTupleLength;
+  int64_t        maxRows;
 } SSortOperatorInfo;
 
 static SSDataBlock* doSort(SOperatorInfo* pOperator);
@@ -54,6 +55,7 @@ SOperatorInfo* createSortOperatorInfo(SOperatorInfo* downstream, SSortPhysiNode*
   pOperator->exprSupp.pExprInfo = createExprInfo(pSortNode->pExprs, NULL, &numOfCols);
   pOperator->exprSupp.numOfExprs = numOfCols;
   calcSortOperMaxTupleLength(pInfo, pSortNode->pSortKeys);
+  pInfo->maxRows = pSortNode->maxRows;
 
   int32_t numOfOutputCols = 0;
   int32_t code =
@@ -196,14 +198,9 @@ int32_t doOpenSortOperator(SOperatorInfo* pOperator) {
   }
 
   pInfo->startTs = taosGetTimestampUs();
-  uint64_t maxRows = UINT64_MAX;
-  if (pInfo->limitInfo.limit.limit != -1)
-    maxRows = pInfo->limitInfo.limit.limit;
-  if (pInfo->limitInfo.limit.offset != -1)
-    maxRows += pInfo->limitInfo.limit.offset;
   //  pInfo->binfo.pRes is not equalled to the input datablock.
   pInfo->pSortHandle = tsortCreateSortHandle(pInfo->pSortInfo, SORT_SINGLESOURCE_SORT, -1, -1, NULL, pTaskInfo->id.str,
-                                             maxRows, pInfo->maxTupleLength, 16 * 1024 * 1024);
+                                             pInfo->maxRows, pInfo->maxTupleLength, 16 * 1024 * 1024);
 
   tsortSetFetchRawDataFp(pInfo->pSortHandle, loadNextDataBlock, applyScalarFunction, pOperator);
 

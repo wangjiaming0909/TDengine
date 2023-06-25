@@ -66,7 +66,7 @@ typedef struct PriorityQueueNode {
 
 typedef struct PriorityQueue PriorityQueue;
 
-PriorityQueue* createPriorityQueue(pq_comp_fn fn, void* param);
+PriorityQueue* createPriorityQueue(pq_comp_fn fn, FDelete deleteFn, void* param);
 void taosPQSetFn(PriorityQueue* pq, pq_comp_fn fn);
 
 void destroyPriorityQueue(PriorityQueue* pq);
@@ -80,7 +80,7 @@ void taosPQPop(PriorityQueue* pq);
 struct BoundedQueue;
 typedef struct BoundedQueue BoundedQueue;
 
-BoundedQueue* createBoundedQueue(uint32_t maxSize, pq_comp_fn fn, void* param);
+BoundedQueue* createBoundedQueue(uint32_t maxSize, pq_comp_fn fn, FDelete deleteFn, void* param);
 void taosBQSetFn(BoundedQueue* q, pq_comp_fn fn);
 
 void destroyBoundedQueue(BoundedQueue* q);

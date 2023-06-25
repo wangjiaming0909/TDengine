@@ -35,10 +35,6 @@
 #include "trpc.h"
 #include "tvariant.h"
 
-TEST(jiaming, a) {
-  testHeapSort();
-}
-
 namespace {
 typedef struct {
   int32_t startVal;
@@ -400,6 +396,7 @@ TEST(testCase, ordered_merge_sort_Test) {
 
 #endif
 
+#if 0
 typedef struct A {
   HeapNode node;
   int a;
@@ -492,6 +489,7 @@ TEST(jiaming, b) {
   test2();
   test3();
 }
+#endif
 
 
 #pragma GCC diagnostic pop

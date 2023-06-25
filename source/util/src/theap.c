@@ -192,12 +192,14 @@ void heapDequeue(Heap* heap) { heapRemove(heap, heap->min); }
 struct PriorityQueue {
   SArray*    container;
   pq_comp_fn fn;
+  FDelete    deleteFn;
   void*      param;
 };
-PriorityQueue* createPriorityQueue(pq_comp_fn fn, void* param) {
+PriorityQueue* createPriorityQueue(pq_comp_fn fn, FDelete deleteFn, void* param) {
   PriorityQueue* pq = (PriorityQueue*)taosMemoryCalloc(1, sizeof(PriorityQueue));
   pq->container = taosArrayInit(1, sizeof(PriorityQueueNode));
   pq->fn = fn;
+  pq->deleteFn = deleteFn;
   pq->param = param;
   return pq;
 }
@@ -207,7 +209,10 @@ void taosPQSetFn(PriorityQueue* pq, pq_comp_fn fn) {
 }
 
 void destroyPriorityQueue(PriorityQueue* pq) {
-  taosArrayDestroy(pq->container);
+  if (pq->deleteFn)
+    taosArrayDestroyP(pq->container, pq->deleteFn);
+  else
+    taosArrayDestroy(pq->container);
   taosMemoryFree(pq);
 }
 
@@ -291,6 +296,8 @@ void taosPQPush(PriorityQueue* pq, const PriorityQueueNode* node) {
 }
 
 void taosPQPop(PriorityQueue* pq) {
+  PriorityQueueNode* top = taosPQTop(pq);
+  if (pq->deleteFn) pq->deleteFn(top->data);
   pqRemove(pq, 0);
 }
 
@@ -299,9 +306,9 @@ struct BoundedQueue {
   uint32_t       maxSize;
 };
 
-BoundedQueue* createBoundedQueue(uint32_t maxSize, pq_comp_fn fn, void* param) {
+BoundedQueue* createBoundedQueue(uint32_t maxSize, pq_comp_fn fn, FDelete deleteFn, void* param) {
   BoundedQueue* q = (BoundedQueue*)taosMemoryCalloc(1, sizeof(BoundedQueue));
-  q->queue = createPriorityQueue(fn, param);
+  q->queue = createPriorityQueue(fn, deleteFn, param);
   taosArrayEnsureCap(q->queue->container, maxSize + 1);
   q->maxSize = maxSize;
   return q;
@@ -312,6 +319,7 @@ void taosBQSetFn(BoundedQueue* q, pq_comp_fn fn) {
 }
 
 void destroyBoundedQueue(BoundedQueue* q) {
+  if (!q) return;
   destroyPriorityQueue(q->queue);
   taosMemoryFree(q);
 }
@@ -322,8 +330,7 @@ void taosBQPush(BoundedQueue* q, PriorityQueueNode* n) {
     void *p = top->data;
     top->data = n->data;
     n->data = p;
-    // jiaming how to free the data
-    taosMemoryFree(n->data);
+    if (q->queue->deleteFn) q->queue->deleteFn(n->data);
     pqHeapify(q->queue, 0, taosBQSize(q));
   } else {
     taosPQPush(q->queue, n);
