@@ -246,6 +246,7 @@ typedef struct SSortLogicNode {
   SLogicNode node;
   SNodeList* pSortKeys;
   bool       groupSort;
+  bool       skipPKSortOpt;
 } SSortLogicNode;
 
 typedef struct SPartitionLogicNode {
