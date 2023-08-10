@@ -606,7 +606,7 @@ int32_t qExecTaskOpt(qTaskInfo_t tinfo, SArray* pResList, uint64_t* useconds, bo
     ASSERT(p->info.rows > 0);
     taosArrayPush(pResList, &p);
 
-    if (current >= 4096) {
+    if (current >= pTaskInfo->rowsThreshold) {
       break;
     }
   }

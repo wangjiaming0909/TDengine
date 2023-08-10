@@ -94,6 +94,7 @@ struct SExecTaskInfo {
   STaskStopInfo         stopInfo;
   SRWLatch              lock;  // secure the access of STableListInfo
   SStorageAPI           storageAPI;
+  uint32_t              rowsThreshold;
 };
 
 void           buildTaskId(uint64_t taskId, uint64_t queryId, char* dst);
