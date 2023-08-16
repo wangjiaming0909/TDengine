@@ -93,7 +93,7 @@ int32_t qExplainInitCtx(SExplainCtx **pCtx, SHashObj *groupHash, bool verbose, d
   }
 
   ctx->mode = mode;
-  ctx->verbose = verbose;
+  ctx->verbose = 1;
   ctx->ratio = ratio;
   ctx->tbuf = tbuf;
   ctx->rows = rows;
@@ -433,6 +433,10 @@ int32_t qExplainResNodeToRowsImpl(SExplainResNode *pResNode, SExplainCtx *ctx, i
         if (NULL != pTblScanNode->pGroupTags) {
           EXPLAIN_ROW_NEW(level + 1, EXPLAIN_PARTITION_KETS_FORMAT);
           EXPLAIN_ROW_APPEND(EXPLAIN_PARTITIONS_FORMAT, pTblScanNode->pGroupTags->length);
+          EXPLAIN_ROW_APPEND(EXPLAIN_BLANK_FORMAT);
+          EXPLAIN_ROW_APPEND(EXPLAIN_SCAN_GROUP_SORT, pTblScanNode->groupSort);
+          EXPLAIN_ROW_APPEND(EXPLAIN_BLANK_FORMAT);
+          EXPLAIN_ROW_APPEND(EXPLAIN_SCAN_GROUP_ORDER_SCAN, pTblScanNode->scan.groupOrderScan);
           EXPLAIN_ROW_END();
           QRY_ERR_RET(qExplainResAppendRow(ctx, tbuf, tlen, level + 1));
         }
@@ -618,6 +622,8 @@ int32_t qExplainResNodeToRowsImpl(SExplainResNode *pResNode, SExplainCtx *ctx, i
         EXPLAIN_ROW_APPEND(EXPLAIN_WIDTH_FORMAT, pAggNode->node.pOutputDataBlockDesc->outputRowSize);
         EXPLAIN_ROW_APPEND_LIMIT(pAggNode->node.pLimit);
         EXPLAIN_ROW_APPEND_SLIMIT(pAggNode->node.pSlimit);
+        EXPLAIN_ROW_APPEND(EXPLAIN_BLANK_FORMAT);
+        EXPLAIN_ROW_APPEND(EXPLAIN_IS_BLOCKING, !pAggNode->node.forceCreateNonBlockingOptr);
         EXPLAIN_ROW_END();
         QRY_ERR_RET(qExplainResAppendRow(ctx, tbuf, tlen, level + 1));
 

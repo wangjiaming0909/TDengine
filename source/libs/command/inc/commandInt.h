@@ -96,6 +96,9 @@ extern "C" {
 #define EXPLAIN_OFFSET_FORMAT "offset=%" PRId64
 #define EXPLAIN_SOFFSET_FORMAT "soffset=%" PRId64
 #define EXPLAIN_PARTITIONS_FORMAT "partitions=%d"
+#define EXPLAIN_SCAN_GROUP_SORT "group_sort=%d"
+#define EXPLAIN_SCAN_GROUP_ORDER_SCAN "group_order_scan=%d"
+#define EXPLAIN_IS_BLOCKING "is_blocking=%d"
 
 #define COMMAND_RESET_LOG "resetLog"
 #define COMMAND_SCHEDULE_POLICY "schedulePolicy"

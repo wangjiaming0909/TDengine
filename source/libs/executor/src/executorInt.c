@@ -190,7 +190,7 @@ SResultRow* doSetResultOutBufByKey(SDiskbasedBuf* pResultBuf, SResultRowInfo* pR
     if (pResult == NULL) {
       T_LONG_JMP(pTaskInfo->env, terrno);
     }
-
+    qInfo("jiaming, new groupid: %ld", groupId);
     // add a new result set for a new group
     SResultRowPosition pos = {.pageId = pResult->pageId, .offset = pResult->offset};
     tSimpleHashPut(pSup->pResultRowHashTable, pSup->keyBuf, GET_RES_WINDOW_KEY_LEN(bytes), &pos,

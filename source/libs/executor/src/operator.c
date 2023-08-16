@@ -27,6 +27,7 @@
 #include "querytask.h"
 
 #include "storageapi.h"
+#include <gperftools/profiler.h>
 
 SOperatorFpSet createOperatorFpSet(__optr_open_fn_t openFn, __optr_fn_t nextFn, __optr_fn_t cleanup,
                                    __optr_close_fn_t closeFn, __optr_reqBuf_fn_t reqBufFn,
@@ -273,6 +274,7 @@ int32_t stopTableScanOperator(SOperatorInfo* pOperator, const char* pIdStr, SSto
 
 SOperatorInfo* createOperator(SPhysiNode* pPhyNode, SExecTaskInfo* pTaskInfo, SReadHandle* pHandle, SNode* pTagCond,
                               SNode* pTagIndexCond, const char* pUser, const char* dbname) {
+  ProfilerStart("/tmp/a.prof");
   int32_t     type = nodeType(pPhyNode);
   const char* idstr = GET_TASKID(pTaskInfo);
   if (pPhyNode->pChildren == NULL || LIST_LENGTH(pPhyNode->pChildren) == 0) {
@@ -535,6 +537,8 @@ SOperatorInfo* createOperator(SPhysiNode* pPhyNode, SExecTaskInfo* pTaskInfo, SR
 }
 
 void destroyOperator(SOperatorInfo* pOperator) {
+  ProfilerFlush();
+  ProfilerStop();
   if (pOperator == NULL) {
     return;
   }
