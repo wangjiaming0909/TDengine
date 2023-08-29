@@ -358,6 +358,9 @@ bool addHintNodeToList(SAstCreateContext* pCxt, SNodeList** ppHintList, EHintOpt
       }
       break;
     }
+    case HINT_SORT_FOR_GROUP:
+      if (paramNum > 0) return true;
+      break;
     default:
       return true;
   }
@@ -419,6 +422,14 @@ SNodeList* createHintNodeList(SAstCreateContext* pCxt, const SToken* pLiteral) {
           break;
         }
         opt = HINT_NO_BATCH_SCAN;
+        break;
+      case TK_SORT_FOR_GROUP:
+        lastComma = false;
+        if (0 != opt || inParamList) {
+          quit = true;
+          break;
+        }
+        opt = HINT_SORT_FOR_GROUP;
         break;
       case TK_NK_LP:
         lastComma = false;
