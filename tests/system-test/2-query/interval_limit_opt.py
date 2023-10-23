@@ -205,10 +205,12 @@ class TDTestCase:
 
 
     def run(self):
+        time.sleep(99999999)
         self.prepareTestEnv()
         self.test_interval_limit_offset()
         self.test_interval_partition_by_slimit_limit()
         self.test_partition_by_limit_no_agg()
+        tdSql.query('select ts as 时间戳 from meters limit 1')
 
     def stop(self):
         tdSql.close()

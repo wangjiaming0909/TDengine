@@ -627,7 +627,7 @@ uint32_t tGetToken(const char* z, uint32_t* tokenId) {
     case 't':
     case 'F':
     case 'f': {
-      for (i = 1; ((z[i] & 0x80) == 0) && isIdChar[(uint8_t)z[i]]; i++) {
+      for (i = 1; (z[i] & 0x80) != 0 || ((z[i] & 0x80) == 0 && isIdChar[(uint8_t)z[i]]); i++) {
       }
 
       if ((i == 4 && strncasecmp(z, "true", 4) == 0) || (i == 5 && strncasecmp(z, "false", 5) == 0)) {
@@ -638,10 +638,10 @@ uint32_t tGetToken(const char* z, uint32_t* tokenId) {
       return i;
     }
     default: {
-      if (((*z & 0x80) != 0) || !isIdChar[(uint8_t)*z]) {
+      if ((*z & 0x80) == 0 && !isIdChar[(uint8_t)*z]) {
         break;
       }
-      for (i = 1; ((z[i] & 0x80) == 0) && isIdChar[(uint8_t)z[i]]; i++) {
+      for (i = 1; ((z[i] & 0x80) == 0 && isIdChar[(uint8_t)z[i]]) || (z[i] & 0x80) != 0; i++) {
       }
       *tokenId = tKeywordCode(z, i);
       return i;
