@@ -1296,9 +1296,11 @@ static const YYCODETYPE yyFallback[] = {
     0,  /*      QTAGS => nothing */
     0,  /*         AS => nothing */
     0,  /*     SYSTEM => nothing */
-    0,  /*      INDEX => nothing */
-    0,  /*   FUNCTION => nothing */
+    0,  /*       TSMA => nothing */
     0,  /*   INTERVAL => nothing */
+    0,  /*      TSMAS => nothing */
+    0,  /*   FUNCTION => nothing */
+    0,  /*      INDEX => nothing */
     0,  /*      COUNT => nothing */
     0,  /*   LAST_ROW => nothing */
     0,  /*       META => nothing */
@@ -1515,6 +1517,7 @@ typedef struct yyParser yyParser;
 
 #ifndef NDEBUG
 #include <stdio.h>
+#include <assert.h>
 static FILE *yyTraceFILE = 0;
 static char *yyTracePrompt = 0;
 #endif /* NDEBUG */
