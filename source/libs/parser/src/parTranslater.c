@@ -6189,6 +6189,7 @@ static int32_t addWstartToSampleProjects(SNodeList* pProjectionList) {
     return TSDB_CODE_OUT_OF_MEMORY;
   }
   strcpy(pFunc->functionName, "_wstart");
+  strcpy(pFunc->node.userAlias, "_wstart");
   return nodesListPushFront(pProjectionList, (SNode*)pFunc);
 }
 
@@ -6198,6 +6199,7 @@ static int32_t addWendToSampleProjects(SNodeList* pProjectionList) {
     return TSDB_CODE_OUT_OF_MEMORY;
   }
   strcpy(pFunc->functionName, "_wend");
+  strcpy(pFunc->node.userAlias, "_wend");
   return nodesListAppend(pProjectionList, (SNode*)pFunc);
 }
 
@@ -6207,6 +6209,7 @@ static int32_t addWdurationToSampleProjects(SNodeList* pProjectionList) {
     return TSDB_CODE_OUT_OF_MEMORY;
   }
   strcpy(pFunc->functionName, "_wduration");
+  strcpy(pFunc->node.userAlias, "_wduration");
   return nodesListAppend(pProjectionList, (SNode*)pFunc);
 }
 
@@ -8965,9 +8968,10 @@ static int32_t buildTSMAAst(STranslateContext* pCxt, SCreateTSMAStmt* pStmt, SMC
 
   if (TSDB_CODE_SUCCESS == code) {
     // append partition by tbname
-    SNode* pTbnameFunc = createTbnameFunction();
+    SFunctionNode* pTbnameFunc = (SFunctionNode*)createTbnameFunction();
     if (pTbnameFunc) {
-      nodesListMakeAppend(&info.pPartitionByList, pTbnameFunc);
+      sprintf(pTbnameFunc->node.userAlias, "tbname");
+      nodesListMakeAppend(&info.pPartitionByList, (SNode*)pTbnameFunc);
     } else {
       code = TSDB_CODE_OUT_OF_MEMORY;
     }
@@ -8993,7 +8997,7 @@ static int32_t buildTSMAAst(STranslateContext* pCxt, SCreateTSMAStmt* pStmt, SMC
   return code;
 }
 
-static char* defaultTSMAFuncs[4] = {"MAX", "MIN", "SUM", "COUNT"};
+static char* defaultTSMAFuncs[4] = {"max", "min", "sum", "count"};
 
 static int32_t
 translateTSMAFuncs(STranslateContext * pCxt, SCreateTSMAStmt* pStmt, STableMeta* pTableMeta) {
@@ -9044,6 +9048,9 @@ translateTSMAFuncs(STranslateContext * pCxt, SCreateTSMAStmt* pStmt, STableMeta*
           nodesDestroyList(pTSMAFuncs);
           return TSDB_CODE_OUT_OF_MEMORY;
         }
+        // TODO what if exceeds the max size
+        snprintf(pFunc->node.userAlias, TSDB_COL_NAME_LEN, "%s(%s)", pFunc->functionName,
+                 ((SColumnNode*)pNode2)->colName);
       }
     }
     nodesDestroyList(pStmt->pOptions->pFuncs);
