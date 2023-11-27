@@ -50,6 +50,7 @@ extern "C" {
 #define TSDB_INS_TABLE_STREAM_TASKS      "ins_stream_tasks"
 #define TSDB_INS_TABLE_USER_PRIVILEGES   "ins_user_privileges"
 #define TSDB_INS_TABLE_VIEWS             "ins_views"
+#define TSDB_INS_TABLE_TSMAS             "ins_tsmas"
 
 #define TSDB_PERFORMANCE_SCHEMA_DB   "performance_schema"
 #define TSDB_PERFS_TABLE_SMAS        "perf_smas"
