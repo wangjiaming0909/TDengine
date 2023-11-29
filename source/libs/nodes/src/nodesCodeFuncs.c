@@ -7071,6 +7071,7 @@ static int32_t createTSMAStmtToJson(const void* pObj, SJson* pJson) {
   if (TSDB_CODE_SUCCESS == code) {
     code = tjsonAddObject(pJson, jkCreateTSMAStmtpOptions, nodeToJson, pNode->pOptions);
   }
+  return code;
 }
 
 static int32_t jsonToCreateTSMAStmt(const SJson* pJson, void* pObj) {
@@ -7086,7 +7087,7 @@ static int32_t jsonToCreateTSMAStmt(const SJson* pJson, void* pObj) {
     code = tjsonGetStringValue(pJson, jkCreateTSMAStmtTableName, pNode->tableName);
   }
   if (TSDB_CODE_SUCCESS == code) {
-    code = jsonToNodeObject(pJson, jkCreateTSMAStmtpOptions, &pNode->pOptions);
+    code = jsonToNodeObject(pJson, jkCreateTSMAStmtpOptions, (SNode**)&pNode->pOptions);
   }
   return code;
 }
