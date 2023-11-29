@@ -163,6 +163,8 @@ typedef enum EFunctionType {
   FUNCTION_TYPE_STDDEV_MERGE,
   FUNCTION_TYPE_IRATE_PARTIAL,
   FUNCTION_TYPE_IRATE_MERGE,
+  FUNCTION_TYPE_AVG_STATE,
+  FUNCTION_TYPE_AVG_STATE_MERGE,
 
   // geometry functions
   FUNCTION_TYPE_GEOM_FROM_TEXT = 4250,
@@ -263,6 +265,9 @@ int32_t fmSetInvertFunc(int32_t funcId, SFuncExecFuncs* pFpSet);
 int32_t fmSetNormalFunc(int32_t funcId, SFuncExecFuncs* pFpSet);
 bool    fmIsInvertible(int32_t funcId);
 char*   fmGetFuncName(int32_t funcId);
+
+bool fmIsTSMASupportedFunc(func_id_t funcid);
+int32_t rewriteFuncsForTSMA(SNodeList* pFuncs);
 
 #ifdef __cplusplus
 }
