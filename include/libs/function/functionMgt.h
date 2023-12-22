@@ -266,9 +266,10 @@ int32_t fmSetNormalFunc(int32_t funcId, SFuncExecFuncs* pFpSet);
 bool    fmIsInvertible(int32_t funcId);
 char*   fmGetFuncName(int32_t funcId);
 
-bool fmIsTSMASupportedFunc(func_id_t funcid);
-int32_t rewriteFuncsForTSMA(SNodeList* pFuncs);
-int32_t getFuncId(const char* name);
+bool    fmIsTSMASupportedFunc(func_id_t funcId);
+int32_t fmCreateStateFuncs(SNodeList* pFuncs);
+int32_t fmGetFuncId(const char* name);
+bool    fmIsMyStateFunc(int32_t funcId, int32_t stateFuncId);
 
 #ifdef __cplusplus
 }
