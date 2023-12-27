@@ -3973,6 +3973,7 @@ typedef struct {
   int64_t  interval;
   int8_t   unit;
   SArray*  pFuncs;  // SArray<STableTSMAFuncInfo>
+  SArray*  pTags; // SArray<SSchema>
 } STableTSMAInfo;
 
 typedef struct {
