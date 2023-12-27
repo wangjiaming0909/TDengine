@@ -1962,13 +1962,13 @@ static int32_t createFillPhysiNode(SPhysiPlanContext* pCxt, SNodeList* pChildren
   return code;
 }
 
-static int32_t createExchangePhysiNodeByMerge(SMergePhysiNode* pMerge) {
+static int32_t createExchangePhysiNodeByMerge(SMergePhysiNode* pMerge, int32_t idx) {
   SExchangePhysiNode* pExchange = (SExchangePhysiNode*)nodesMakeNode(QUERY_NODE_PHYSICAL_PLAN_EXCHANGE);
   if (NULL == pExchange) {
     return TSDB_CODE_OUT_OF_MEMORY;
   }
-  pExchange->srcStartGroupId = pMerge->srcGroupId;
-  pExchange->srcEndGroupId = pMerge->srcGroupId;
+  pExchange->srcStartGroupId = pMerge->srcGroupId + idx;
+  pExchange->srcEndGroupId = pMerge->srcGroupId + idx;
   pExchange->singleChannel = true;
   pExchange->node.pParent = (SPhysiNode*)pMerge;
   pExchange->node.pOutputDataBlockDesc = (SDataBlockDescNode*)nodesCloneNode((SNode*)pMerge->node.pOutputDataBlockDesc);
@@ -1999,6 +1999,7 @@ static int32_t createMergePhysiNode(SPhysiPlanContext* pCxt, SNodeList* pChildre
   
   pMerge->numOfChannels = pMergeLogicNode->numOfChannels;
   pMerge->srcGroupId = pMergeLogicNode->srcGroupId;
+  pMerge->srcEndGroupId = pMergeLogicNode->srcEndGroupId;
   pMerge->groupSort = pMergeLogicNode->groupSort;
   pMerge->ignoreGroupId = pMergeLogicNode->ignoreGroupId;
   pMerge->inputWithGroupId = pMergeLogicNode->inputWithGroupId;
@@ -2007,10 +2008,12 @@ static int32_t createMergePhysiNode(SPhysiPlanContext* pCxt, SNodeList* pChildre
     code = addDataBlockSlots(pCxt, pMergeLogicNode->pInputs, pMerge->node.pOutputDataBlockDesc);
 
     if (TSDB_CODE_SUCCESS == code) {
-      for (int32_t i = 0; i < pMerge->numOfChannels; ++i) {
-        code = createExchangePhysiNodeByMerge(pMerge);
-        if (TSDB_CODE_SUCCESS != code) {
-          break;
+      for (int32_t j = 0; j < pMergeLogicNode->numOfSubplans; ++j) {
+        for (int32_t i = 0; i < pMerge->numOfChannels; ++i) {
+          code = createExchangePhysiNodeByMerge(pMerge, 0);
+          if (TSDB_CODE_SUCCESS != code) {
+            break;
+          }
         }
       }
     }
