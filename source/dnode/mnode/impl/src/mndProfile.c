@@ -608,9 +608,6 @@ static int32_t mndProcessQueryHeartBeat(SMnode *pMnode, SRpcMsg *pMsg, SClientHb
       }
 #endif
       case HEARTBEAT_KEY_TSMA: {
-        if (!needCheck) {
-          break;
-        }
         void *  rspMsg = NULL;
         int32_t rspLen = 0;
         mndValidateTSMAInfo(pMnode, kv->value, kv->valueLen / sizeof(STSMAVersion), &rspMsg, &rspLen);
