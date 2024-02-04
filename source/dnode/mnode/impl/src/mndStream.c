@@ -2212,7 +2212,7 @@ int32_t mndProcessStreamReqCheckpoint(SRpcMsg *pReq) {
   mndReleaseStream(pMnode, pStream);
   taosThreadMutexUnlock(&execInfo.lock);
 
-  return NULL;
+  return 0;
 }
 
 static int32_t mndProcessCreateStreamReqFromMNode(SRpcMsg *pReq) {
