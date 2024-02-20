@@ -67,9 +67,8 @@ typedef struct SCreateTSMACxt {
     const SMCreateSmaReq *pCreateSmaReq;
     const SMDropSmaReq *  pDropSmaReq;
   };
-  const SDbObj *pDb;
-  SStbObj *     pSrcStb;
-  // TODO normal table
+  const SDbObj *      pDb;
+  SStbObj *           pSrcStb;
   SSmaObj *           pSma;
   SCMCreateStreamReq *pCreateStreamReq;
   SMDropStreamReq *   pDropStreamReq;
@@ -1446,8 +1445,9 @@ static void mndCreateTSMABuildCreateStreamReq(SCreateTSMACxt *pCxt) {
   pCxt->pCreateStreamReq->targetStbUid = 0;
   pCxt->pCreateStreamReq->fillNullCols = NULL;
   pCxt->pCreateStreamReq->igUpdate = 0;
-  // TODO what's this tiemstamp?
-  pCxt->pCreateStreamReq->lastTs = 1755442278000;
+  // TODO what's this timestamp
+  //pCxt->pCreateStreamReq->lastTs = pCxt->pCreateSmaReq->lastTs;
+  pCxt->pCreateStreamReq->lastTs = 1758414148000;
   pCxt->pCreateStreamReq->ast = strdup(pCxt->pCreateSmaReq->ast);
   pCxt->pCreateStreamReq->sql = strdup(pCxt->pCreateSmaReq->sql);
 
@@ -1554,6 +1554,14 @@ static int32_t mndCreateTSMA(SCreateTSMACxt *pCxt) {
   pCxt->pSma = &sma;
   initSMAObj(pCxt);
   pCxt->pCreateStreamReq = &createStreamReq;
+  if (pCxt->pCreateSmaReq->pVgroupVerList) {
+    pCxt->pCreateStreamReq->pVgroupVerList = taosArrayDup(pCxt->pCreateSmaReq->pVgroupVerList, NULL);
+    if (!pCxt->pCreateStreamReq->pVgroupVerList) {
+      errno = TSDB_CODE_OUT_OF_MEMORY;
+      code = -1;
+      goto _OVER;
+    }
+  }
   pCxt->pDropStreamReq = &dropStreamReq;
   mndCreateTSMABuildCreateStreamReq(pCxt);
   mndCreateTSMABuildDropStreamReq(pCxt);
@@ -1569,7 +1577,7 @@ static int32_t mndCreateTSMA(SCreateTSMACxt *pCxt) {
 
 _OVER:
   tFreeSCMCreateStreamReq(pCxt->pCreateStreamReq);
-  tFreeMDropStreamReq(pCxt->pDropStreamReq);
+  if (pCxt->pDropStreamReq) tFreeMDropStreamReq(pCxt->pDropStreamReq);
   pCxt->pCreateStreamReq = NULL;
   return code;
 }
@@ -1717,7 +1725,7 @@ static int32_t mndDropTSMA(SCreateTSMACxt* pCxt) {
   SMDropStbReq dropStbReq = {0};
   dropStbReq.igNotExists = false;
   tstrncpy(dropStbReq.name, pCxt->targetStbFullName, TSDB_TABLE_FNAME_LEN);
-  // TODO fill sql
+  // TODO fill sql, sql may be freed
   dropStbReq.sql = "drop";
   dropStbReq.sqlLen = 5;
 
