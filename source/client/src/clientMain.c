@@ -1278,8 +1278,13 @@ void restartAsyncQuery(SRequestObj *pRequest, int32_t code) {
     pTmp = acquireRequest(tmpRefId);
     if (pTmp) {
       tmpRefId = pTmp->relation.nextRefId;
+      if (pTmp->relation.userRefId == pTmp->self || 0 == pTmp->relation.userRefId) {
+        pUserReq = pTmp;
+        destroyCtxInRequest(pUserReq);
+        releaseRequest(pTmp->self);
+        continue;
+      }
       removeRequest(pTmp->self);
-      releaseRequest(pTmp->self);
     } else {
       tscError("next req ref 0x%" PRIx64 " is not there", tmpRefId);
       break;
