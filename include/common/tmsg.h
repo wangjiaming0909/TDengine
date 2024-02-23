@@ -2473,6 +2473,7 @@ typedef struct {
   int8_t   igUpdate;
   int64_t  lastTs;
   SArray*  pVgroupVerList;
+  int64_t  smaId;
 } SCMCreateStreamReq;
 
 typedef struct {
