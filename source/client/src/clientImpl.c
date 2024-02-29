@@ -228,6 +228,7 @@ int32_t buildRequest(uint64_t connId, const char* sql, int sqlLen, void* param, 
 int32_t buildPreviousRequest(SRequestObj* pRequest, const char* sql, SRequestObj** pNewRequest) {
   int32_t code =
       buildRequest(pRequest->pTscObj->id, sql, strlen(sql), pRequest, pRequest->validateOnly, pNewRequest, 0);
+  taosSsleep(2);
   if (TSDB_CODE_SUCCESS == code) {
     pRequest->relation.prevRefId = (*pNewRequest)->self;
     (*pNewRequest)->relation.nextRefId = pRequest->self;

@@ -537,7 +537,13 @@ int32_t hbBuildQueryDesc(SQueryHbReqBasic *hbBasic, STscObj *pObj) {
       continue;
     }
 
+    tscInfo("-----wjm hb acquire request with sql: %s rid: %"PRId64, pRequest->sqlstr, rid);
+    if (pRequest->self == 6) {
+      taosSsleep(2);
+    }
+
     if (pRequest->killed || 0 == pRequest->body.queryJob) {
+      tscDebug("-----wjm hb release request with sql: %s rid: %"PRId64, pRequest->sqlstr, rid);
       releaseRequest(*rid);
       pIter = taosHashIterate(pObj->pRequests, pIter);
       continue;
@@ -571,6 +577,7 @@ int32_t hbBuildQueryDesc(SQueryHbReqBasic *hbBasic, STscObj *pObj) {
     }
 
     releaseRequest(*rid);
+    tscDebug("-----wjm hb release request with sql: %s rid: %"PRId64, pRequest->sqlstr, rid);
     taosArrayPush(hbBasic->queryDesc, &desc);
 
     pIter = taosHashIterate(pObj->pRequests, pIter);

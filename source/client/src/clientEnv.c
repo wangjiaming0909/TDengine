@@ -374,6 +374,34 @@ int32_t releaseRequest(int64_t rid) { return taosReleaseRef(clientReqRefPool, ri
 
 int32_t removeRequest(int64_t rid) { return taosRemoveRef(clientReqRefPool, rid); }
 
+int64_t removeMostPrevReq(SRequestObj* pRequest) {
+  int64_t ret = 0;
+  SRequestObj* pTmp = pRequest;
+  while (pTmp->relation.prevRefId) {
+    pTmp = acquireRequest(pTmp->relation.prevRefId);
+    if (pTmp) {
+      ret = pTmp->self;
+      releaseRequest(ret);
+    } else {
+      break;
+    }
+  }
+  if (ret) {
+    removeRequest(ret);
+  }
+  return ret;
+}
+
+void destroyNextReq(int64_t nextRefId) {
+  if (nextRefId) {
+    SRequestObj* pObj = acquireRequest(nextRefId);
+    if (pObj) {
+      removeRequest(nextRefId);
+      releaseRequest(nextRefId);
+    }
+  }
+}
+
 void destroySubRequests(SRequestObj *pRequest) {
   int32_t      reqIdx = -1;
   SRequestObj *pReqList[16] = {NULL};
@@ -381,6 +409,10 @@ void destroySubRequests(SRequestObj *pRequest) {
 
   if (pRequest->relation.userRefId && pRequest->relation.userRefId != pRequest->self) {
     return;
+  }
+
+  if (pRequest->self == 5) {
+    taosMsleep(10);
   }
 
   SRequestObj *pTmp = pRequest;
@@ -424,7 +456,8 @@ void doDestroyRequest(void *p) {
   uint64_t reqId = pRequest->requestId;
   tscTrace("begin to destroy request %" PRIx64 " p:%p", reqId, pRequest);
 
-  destroySubRequests(pRequest);
+  int64_t nextReqRefId = pRequest->relation.nextRefId;
+  //destroySubRequests(pRequest);
 
   taosHashRemove(pRequest->pTscObj->pRequests, &pRequest->self, sizeof(pRequest->self));
 
@@ -460,6 +493,7 @@ void doDestroyRequest(void *p) {
   taosMemoryFreeClear(pRequest->sqlstr);
   taosMemoryFree(pRequest);
   tscTrace("end to destroy request %" PRIx64 " p:%p", reqId, pRequest);
+  destroyNextReq(nextReqRefId);
 }
 
 void destroyRequest(SRequestObj *pRequest) {
@@ -468,6 +502,7 @@ void destroyRequest(SRequestObj *pRequest) {
   }
 
   taos_stop_query(pRequest);
+  if(removeMostPrevReq(pRequest)) return;
   removeRequest(pRequest->self);
 }
 
