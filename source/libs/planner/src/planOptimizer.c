@@ -4609,7 +4609,7 @@ static void tsmaOptSplitWindows(STSMAOptCtx* pTsmaOptCtx, const STimeWindow* pSc
   }
 
   // the main tsma
-  if (endOfSkeyFirstWin <= startOfEkeyFirstWin) {
+  if (endOfSkeyFirstWin < startOfEkeyFirstWin) {
     scanRange.ekey =
         TMIN(pScanRange->ekey, endOfSkeyFirstWin == startOfEkeyFirstWin ? pScanRange->ekey : startOfEkeyFirstWin - 1);
     if (!isSkeyAlignedWithTsma) {
@@ -4949,6 +4949,8 @@ static int32_t tsmaOptRevisePlan2(STSMAOptCtx* pTsmaOptCtx, SLogicNode* pParent,
         REPLACE_NODE(pAggFuncNode);
       }
       continue;
+    } else if (fmIsPseudoColumnFunc(pAggFunc->funcId)) {
+      continue;
     }
     code = fmGetDistMethod(pAggFunc, &pPartial, NULL, &pMerge);
     if (code) break;
@@ -5080,6 +5082,7 @@ static int32_t tsmaOptGeneratePlan(STSMAOptCtx* pTsmaOptCtx) {
   const STSMAOptUsefulTsma* pTsma = NULL;
   SNodeList*                pAggFuncs = NULL;
 
+  // TODO if no used tsmas skip generating plans
   for (int32_t i = 0; i < pTsmaOptCtx->pUsedTsmas->size; ++i) {
     STSMAOptUsefulTsma* pTsma = taosArrayGet(pTsmaOptCtx->pUsedTsmas, i);
     if (pTsma->pTsma) {
