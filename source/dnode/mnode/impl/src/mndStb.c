@@ -3187,6 +3187,11 @@ static int32_t mndRetrieveStb(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBloc
       continue;
     }
 
+    if (isTsmaResSTb(pStb->name)) {
+      sdbRelease(pSdb, pStb);
+      continue;
+    }
+
     cols = 0;
 
     SName name = {0};
