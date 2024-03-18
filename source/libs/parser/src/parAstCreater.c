@@ -2752,7 +2752,7 @@ SNode* createTSMAOptions(SAstCreateContext* pCxt, SNodeList* pFuncs) {
     snprintf(pCxt->pQueryCxt->pMsg, pCxt->pQueryCxt->msgLen, "Out of memory");
     return NULL;
   }
-  // TODO check non supported funcs somewhere
+  // TODO tsma check non supported funcs somewhere
   pOptions->pFuncs = pFuncs;
   return (SNode*)pOptions;
 }
