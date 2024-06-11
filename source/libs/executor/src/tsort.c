@@ -112,6 +112,8 @@ struct SSortHandle {
   bool            bSortPk;
   void (*mergeLimitReachedFn)(uint64_t tableUid, void* param);
   void* mergeLimitReachedParam;
+
+  bool (*getSourceShouldRetryLater)(SSortSource* pSource);
 };
 
 static int32_t destroySortMemFile(SSortHandle* pHandle);
@@ -508,9 +510,12 @@ static int32_t sortComparInit(SMsortComparParam* pParam, SArray* pSources, int32
       pSource->src.pBlock = pHandle->fetchfp(pSource->param);
 
       // set current source is done
-      if (pSource->src.pBlock == NULL) {
+      if (pSource->src.pBlock == NULL &&
+          (!pHandle->getSourceShouldRetryLater || !pHandle->getSourceShouldRetryLater(pSource))) { // TODO wjm move into setCurrentSourceDone
         setCurrentSourceDone(pSource, pHandle);
       }
+      if (pHandle->getSourceShouldRetryLater && pHandle->getSourceShouldRetryLater(pSource))
+        pHandle->needAdjust = true;
     }
 
     int64_t et = taosGetTimestampUs();
@@ -545,7 +550,7 @@ static int32_t adjustMergeTreeForNextTuple(SSortSource* pSource, SMultiwayMergeT
    * load a new SDataBlock into memory of a given intermediate data-set source,
    * since it's last record in buffer has been chosen to be processed, as the winner of loser-tree
    */
-  if (pSource->src.rowIndex >= pSource->src.pBlock->info.rows) {
+  if (pSource->src.rowIndex >= pSource->src.pBlock->info.rows || (pHandle->getSourceShouldRetryLater && pHandle->getSourceShouldRetryLater(pSource)) ) {
     pSource->src.rowIndex = 0;
 
     if (pHandle->type == SORT_SINGLESOURCE_SORT) {
@@ -580,13 +585,15 @@ static int32_t adjustMergeTreeForNextTuple(SSortSource* pSource, SMultiwayMergeT
       pSource->src.pBlock = pHandle->fetchfp(((SSortSource*)pSource)->param);
       pSource->fetchUs += taosGetTimestampUs() - st;
       pSource->fetchNum++;
-      if (pSource->src.pBlock == NULL) {
+      if (pSource->src.pBlock == NULL &&
+          (!pHandle->getSourceShouldRetryLater || !pHandle->getSourceShouldRetryLater(pSource))) {
         (*numOfCompleted) += 1;
         pSource->src.rowIndex = -1;
         qDebug("adjust merge tree. %d source completed", *numOfCompleted);
       }
     }
   }
+  if (pHandle->getSourceShouldRetryLater && pHandle->getSourceShouldRetryLater(pSource)) return TSDB_CODE_QRY_QWORKER_RETRY_LATER;
 
   /*
    * Adjust loser tree otherwise, according to new candidate data
@@ -2350,4 +2357,8 @@ int32_t tsortCompAndBuildKeys(const SArray* pSortCols, char* keyBuf, int32_t* ke
 void tsortSetMergeLimitReachedFp(SSortHandle* pHandle, void (*mergeLimitReachedCb)(uint64_t tableUid, void* param), void* param) {
   pHandle->mergeLimitReachedFn = mergeLimitReachedCb;
   pHandle->mergeLimitReachedParam = param;
+}
+
+void tsortSetSourceShouldRetryLaterFp(SSortHandle* pHandle, bool (*getSourceShouldRetryLater)(SSortSource* pSource)) {
+  pHandle->getSourceShouldRetryLater = getSourceShouldRetryLater;
 }

@@ -63,6 +63,11 @@ SSDataBlock* sortMergeloadNextDataBlock(void* param) {
   return pBlock;
 }
 
+bool sortMergeSourceShouldRetryLater(SSortSource* pSource) {
+  SOperatorInfo* pDownstreamOp = pSource->param;
+  return pDownstreamOp->status != OP_EXEC_DONE && pSource->src.pBlock == NULL;
+}
+
 int32_t openSortMergeOperator(SOperatorInfo* pOperator) {
   SMultiwayMergeOperatorInfo* pInfo = pOperator->info;
   SExecTaskInfo*              pTaskInfo = pOperator->pTaskInfo;
@@ -79,6 +84,7 @@ int32_t openSortMergeOperator(SOperatorInfo* pOperator) {
   for (int32_t i = 0; i < pOperator->numOfDownstream; ++i) {
     SOperatorInfo* pDownstream = pOperator->pDownstream[i];
     if (pDownstream->operatorType == QUERY_NODE_PHYSICAL_PLAN_EXCHANGE) {
+      tsortSetSourceShouldRetryLaterFp(pSortMergeInfo->pSortHandle, sortMergeSourceShouldRetryLater);
       pDownstream->fpSet._openFn(pDownstream);
     }
 
@@ -174,6 +180,12 @@ SSDataBlock* doSortMerge(SOperatorInfo* pOperator) {
 
   while (1) {
     doGetSortedBlockData(pInfo, pHandle, capacity, p, &newgroup);
+    if (terrno == TSDB_CODE_QRY_QWORKER_RETRY_LATER) {
+      pOperator->shouldTryLater = true;
+      terrno = TSDB_CODE_SUCCESS;
+    } else {
+      pOperator->shouldTryLater = false;
+    }
     if (p->info.rows == 0) {
       break;
     }
