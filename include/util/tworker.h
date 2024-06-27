@@ -26,6 +26,30 @@ extern "C" {
 
 typedef struct SWWorkerPool SWWorkerPool;
 
+typedef enum SWorkerPoolType {
+  QWORKER_POOL = 0,
+  QUERY_AUTO_QWORKER_POOL,
+  WORKER_POOL_TYPE_MAX,
+} SWorkerPoolType;
+
+struct SQWorkerPoolBase;
+typedef struct SQWorkerPoolOper {
+  SWorkerPoolType type;
+  struct SQWorkerPoolBase *(*poolCreate)();
+  int32_t (*poolInit)(struct SQWorkerPoolBase *pool);
+  void (*poolCleanup)(struct SQWorkerPoolBase *pool);
+  void (*poolDestroy)(void *pool);
+  STaosQueue *(*poolAllocQueue)(struct SQWorkerPoolBase *pool, void *ahandle, FItem fp);
+  void (*poolFreeQueue)(struct SQWorkerPoolBase *pool, STaosQueue *queue);
+} SQWorkerPoolOper;
+
+typedef struct SQWorkerPoolBase {
+  SQWorkerPoolOper *oper;
+  const char       *name;
+  int32_t           min;
+  int32_t           max;
+} SQWorkerPoolBase;
+
 typedef struct SQueueWorker {
   int32_t  id;      // worker id
   int64_t  pid;     // thread pid
@@ -34,13 +58,11 @@ typedef struct SQueueWorker {
 } SQueueWorker;
 
 typedef struct SQWorkerPool {
-  int32_t       max;  // max number of workers
-  int32_t       min;  // min number of workers
-  int32_t       num;  // current number of workers
-  STaosQset    *qset;
-  const char   *name;
-  SQueueWorker *workers;
-  TdThreadMutex mutex;
+  SQWorkerPoolBase base;
+  int32_t          num;  // current number of workers
+  STaosQset       *qset;
+  SQueueWorker    *workers;
+  TdThreadMutex    mutex;
 } SQWorkerPool;
 
 typedef struct SAutoQWorkerPool {
@@ -69,10 +91,11 @@ struct SWWorkerPool {
   TdThreadMutex mutex;
 };
 
-int32_t     tQWorkerInit(SQWorkerPool *pool);
-void        tQWorkerCleanup(SQWorkerPool *pool);
-STaosQueue *tQWorkerAllocQueue(SQWorkerPool *pool, void *ahandle, FItem fp);
-void        tQWorkerFreeQueue(SQWorkerPool *pool, STaosQueue *queue);
+SQWorkerPoolBase *tQWorkerPoolCreate();
+int32_t           tQWorkerInit(SQWorkerPoolBase *pool);
+void              tQWorkerCleanup(SQWorkerPoolBase *pool);
+STaosQueue       *tQWorkerAllocQueue(SQWorkerPoolBase *pool, void *ahandle, FItem fp);
+void              tQWorkerFreeQueue(SQWorkerPoolBase *pool, STaosQueue *queue);
 
 int32_t     tAutoQWorkerInit(SAutoQWorkerPool *pool);
 void        tAutoQWorkerCleanup(SAutoQWorkerPool *pool);
@@ -85,17 +108,18 @@ STaosQueue *tWWorkerAllocQueue(SWWorkerPool *pool, void *ahandle, FItems fp);
 void        tWWorkerFreeQueue(SWWorkerPool *pool, STaosQueue *queue);
 
 typedef struct {
-  const char *name;
-  int32_t     min;
-  int32_t     max;
-  FItem       fp;
-  void       *param;
+  const char     *name;
+  int32_t         min;
+  int32_t         max;
+  FItem           fp;
+  void           *param;
+  SWorkerPoolType poolType;
 } SSingleWorkerCfg;
 
 typedef struct {
-  const char  *name;
-  STaosQueue  *queue;
-  SQWorkerPool pool;
+  const char       *name;
+  STaosQueue       *queue;
+  SQWorkerPoolBase *pool;
 } SSingleWorker;
 
 typedef struct {
@@ -127,10 +151,9 @@ typedef struct SQueryAutoQWorker {
 } SQueryAutoQWorker;
 
 typedef struct SQueryAutoQWorkerPool {
-  int32_t       num;
-  int32_t       max;
-  int32_t       min;
-  int32_t       maxInUse;
+  SQWorkerPoolBase base;
+  int32_t          num;
+  int32_t          maxInUse;
 
   int32_t       activeN; // running workers and workers waiting at reading new queue msg
   int32_t       runningN; // workers processing queue msgs, not include blocking/waitingA/waitingB workers.
@@ -147,7 +170,6 @@ typedef struct SQueryAutoQWorkerPool {
   TdThreadMutex backupLock;
   TdThreadCond  backupCond;
 
-  const char                     *name;
   TdThreadMutex                   poolLock;
   SList                          *workers;
   SList                          *backupWorkers;
@@ -157,10 +179,11 @@ typedef struct SQueryAutoQWorkerPool {
   bool                            exit;
 } SQueryAutoQWorkerPool;
 
-int32_t     tQueryAutoQWorkerInit(SQueryAutoQWorkerPool *pPool);
-void        tQueryAutoQWorkerCleanup(SQueryAutoQWorkerPool *pPool);
-STaosQueue *tQueryAutoQWorkerAllocQueue(SQueryAutoQWorkerPool *pPool, void *ahandle, FItem fp);
-void        tQueryAutoQWorkerFreeQueue(SQueryAutoQWorkerPool* pPool, STaosQueue* pQ);
+SQWorkerPoolBase* tQueryAutoQWorkerCreate();
+int32_t     tQueryAutoQWorkerInit(SQWorkerPoolBase *pPool);
+void        tQueryAutoQWorkerCleanup(SQWorkerPoolBase *pPool);
+STaosQueue *tQueryAutoQWorkerAllocQueue(SQWorkerPoolBase *pPool, void *ahandle, FItem fp);
+void        tQueryAutoQWorkerFreeQueue(SQWorkerPoolBase* pPool, STaosQueue* pQ);
 
 typedef struct SQueryAutoQWorkerPoolCB {
   void *pPool;
