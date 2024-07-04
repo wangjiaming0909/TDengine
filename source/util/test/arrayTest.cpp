@@ -5,6 +5,8 @@
 
 #include "tarray.h"
 #include "tcompare.h"
+#include "tmsg.h"
+#include "ttime.h"
 /*
 namespace {
 
@@ -216,4 +218,19 @@ TEST(arrayTest, check_overall) {
      ASSERT_EQ(*(uint64_t*)taosArrayGet(pb, i), list[i]);
   }  
   taosArrayDestroy(pb);
+}
+
+TEST(a,a) {
+  int64_t t = 1700000000000;
+  SInterval interval;
+  interval.interval = 60 * 1000;
+  interval.intervalUnit = 'a';
+  interval.offset = 0;
+  interval.offsetUnit = 'a';
+  interval.sliding = 20 * 1000;
+  interval.slidingUnit = 'a';
+  interval.precision = TSDB_TIME_PRECISION_MILLI;
+  interval.tz = 0;
+  auto res = taosTimeTruncate(t, &interval);
+  std::cout << res << std::endl;
 }

@@ -5,6 +5,7 @@
 
 #include "tarray.h"
 #include "tcompare.h"
+#include <ttime.h>
 
 namespace {
 }  // namespace
@@ -382,3 +383,4 @@ TEST(utilTest, intToHextStr) {
     ASSERT_STREQ(buf, destBuf);
   }
 }
+

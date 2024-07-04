@@ -155,6 +155,7 @@ static void revisedFillStartKey(SFillOperatorInfo* pInfo, SSDataBlock* pBlock, i
   } else {
     int64_t ekey = pBlock->info.window.ekey;
     if (ekey > pInfo->pFillInfo->start) {
+      assert(0);
       ASSERT( taosFillNotStarted(pInfo->pFillInfo));
       taosFillUpdateStartTimestampInfo(pInfo->pFillInfo, ekey);
     } else if (ekey < pInfo->pFillInfo->start) {
