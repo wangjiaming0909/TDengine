@@ -30,9 +30,10 @@ extern void  ParseFree(void*, FFree);
 extern void  ParseTrace(FILE*, char*);
 
 int32_t buildQueryAfterParse(SQuery** pQuery, SNode* pRootNode, int16_t placeholderNo, SArray** pPlaceholderValues) {
-  *pQuery = (SQuery*)nodesMakeNode(QUERY_NODE_QUERY);
+  *pQuery = NULL;
+  int32_t code = nodesMakeNode(QUERY_NODE_QUERY, (SNode**)pQuery);
   if (NULL == *pQuery) {
-    return TSDB_CODE_OUT_OF_MEMORY;
+    return code;
   }
   (*pQuery)->pRoot = pRootNode;
   (*pQuery)->placeholderNum = placeholderNo;

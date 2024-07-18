@@ -8212,9 +8212,9 @@ static int32_t makeNodeByJson(const SJson* pJson, SNode** pNode) {
   int32_t val = 0;
   int32_t code = tjsonGetIntValue(pJson, jkNodeType, &val);
   if (TSDB_CODE_SUCCESS == code) {
-    *pNode = nodesMakeNode(val);
+    code = nodesMakeNode(val, pNode);
     if (NULL == *pNode) {
-      return TSDB_CODE_FAILED;
+      return code;
     }
     code = jsonToNode(pJson, *pNode);
   }

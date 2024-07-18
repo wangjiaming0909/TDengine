@@ -107,14 +107,15 @@ static EDealRes authSubquery(SAuthCxt* pCxt, SNode* pStmt) {
 }
 
 static int32_t mergeStableTagCond(SNode** pWhere, SNode* pTagCond) {
-  SLogicConditionNode* pLogicCond = (SLogicConditionNode*)nodesMakeNode(QUERY_NODE_LOGIC_CONDITION);
+  SLogicConditionNode* pLogicCond = NULL;
+  int32_t code = nodesMakeNode(QUERY_NODE_LOGIC_CONDITION, (SNode**)&pLogicCond);
   if (NULL == pLogicCond) {
-    return TSDB_CODE_OUT_OF_MEMORY;
+    return code;
   }
   pLogicCond->node.resType.type = TSDB_DATA_TYPE_BOOL;
   pLogicCond->node.resType.bytes = tDataTypes[TSDB_DATA_TYPE_BOOL].bytes;
   pLogicCond->condType = LOGIC_COND_TYPE_AND;
-  int32_t code = nodesListMakeStrictAppend(&pLogicCond->pParameterList, pTagCond);
+  code = nodesListMakeStrictAppend(&pLogicCond->pParameterList, pTagCond);
   if (TSDB_CODE_SUCCESS == code) {
     code = nodesListMakeAppend(&pLogicCond->pParameterList, *pWhere);
   }

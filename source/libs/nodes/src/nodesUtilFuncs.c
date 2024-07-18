@@ -2263,7 +2263,11 @@ static EDealRes doCollect(SCollectColumnsCxt* pCxt, SColumnNode* pCol, SNode* pN
   if (NULL == taosHashGet(pCxt->pColHash, name, len)) {
     pCxt->errCode = taosHashPut(pCxt->pColHash, name, len, NULL, 0);
     if (TSDB_CODE_SUCCESS == pCxt->errCode) {
-      pCxt->errCode = nodesListStrictAppend(pCxt->pCols, nodesCloneNode(pNode));
+      SNode* pNew = NULL;
+      pCxt->errCode = nodesCloneNode(pNode, &pNew);
+      if (TSDB_CODE_SUCCESS == pCxt->errCode) {
+        pCxt->errCode = nodesListStrictAppend(pCxt->pCols, pNew);
+      }
     }
     return (TSDB_CODE_SUCCESS == pCxt->errCode ? DEAL_RES_IGNORE_CHILD : DEAL_RES_ERROR);
   }
@@ -2423,7 +2427,11 @@ static EDealRes collectFuncs(SNode* pNode, void* pContext) {
       }
     }
     if (!bFound) {
-      pCxt->errCode = nodesListStrictAppend(pCxt->pFuncs, nodesCloneNode(pNode));
+      SNode* pNew = NULL;
+      pCxt->errCode = nodesCloneNode(pNode, &pNew);
+      if (TSDB_CODE_SUCCESS == pCxt->errCode) {
+        pCxt->errCode = nodesListStrictAppend(pCxt->pFuncs, pNew);
+      }
     }
     return (TSDB_CODE_SUCCESS == pCxt->errCode ? DEAL_RES_IGNORE_CHILD : DEAL_RES_ERROR);
   }
@@ -2492,30 +2500,37 @@ typedef struct SCollectSpecialNodesCxt {
 static EDealRes collectSpecialNodes(SNode* pNode, void* pContext) {
   SCollectSpecialNodesCxt* pCxt = (SCollectSpecialNodesCxt*)pContext;
   if (pCxt->type == nodeType(pNode)) {
-    pCxt->errCode = nodesListStrictAppend(pCxt->pNodes, nodesCloneNode(pNode));
+    SNode* pNew = NULL;
+    pCxt->errCode = nodesCloneNode(pNode, &pNew);
+    if (TSDB_CODE_SUCCESS == pCxt->errCode) {
+      pCxt->errCode = nodesListStrictAppend(pCxt->pNodes, pNew);
+    }
     return (TSDB_CODE_SUCCESS == pCxt->errCode ? DEAL_RES_IGNORE_CHILD : DEAL_RES_ERROR);
   }
   return DEAL_RES_CONTINUE;
 }
 
-int32_t nodesCollectSpecialNodes(SSelectStmt* pSelect, ESqlClause clause, ENodeType type, SNodeList** pNodes) {
-  if (NULL == pSelect || NULL == pNodes) {
+int32_t nodesCollectSpecialNodes(SSelectStmt* pSelect, ESqlClause clause, ENodeType type, SNodeList** ppNodes) {
+  if (NULL == pSelect || NULL == ppNodes) {
     return TSDB_CODE_FAILED;
   }
-
-  SCollectSpecialNodesCxt cxt = {
-      .errCode = TSDB_CODE_SUCCESS, .type = type, .pNodes = (NULL == *pNodes ? nodesMakeList() : *pNodes)};
-  if (NULL == cxt.pNodes) {
-    return TSDB_CODE_OUT_OF_MEMORY;
+  SCollectSpecialNodesCxt cxt = {.errCode = TSDB_CODE_SUCCESS, .type = type, .pNodes = NULL};
+  if (!*ppNodes) {
+    cxt.errCode = nodesMakeList(&cxt.pNodes);
+  } else {
+    cxt.pNodes = *ppNodes;
   }
-  *pNodes = NULL;
+  if (NULL == cxt.pNodes) {
+    return cxt.errCode;
+  }
+  *ppNodes = NULL;
   nodesWalkSelectStmt(pSelect, SQL_CLAUSE_GROUP_BY, collectSpecialNodes, &cxt);
   if (TSDB_CODE_SUCCESS != cxt.errCode) {
     nodesDestroyList(cxt.pNodes);
     return cxt.errCode;
   }
   if (LIST_LENGTH(cxt.pNodes) > 0) {
-    *pNodes = cxt.pNodes;
+    *ppNodes = cxt.pNodes;
   } else {
     nodesDestroyList(cxt.pNodes);
   }
@@ -2690,7 +2705,7 @@ const char* dataOrderStr(EDataOrderLevel order) {
   return "unknown";
 }
 
-SValueNode* nodesMakeValueNodeFromString(char* literal) {
+int32_t nodesMakeValueNodeFromString(char* literal, SValueNode** ppValNode) {
   int32_t lenStr = strlen(literal);
   SValueNode* pValNode = NULL;
   int32_t code = nodesMakeNode(QUERY_NODE_VALUE, (SNode**)&pValNode);
@@ -2699,7 +2714,7 @@ SValueNode* nodesMakeValueNodeFromString(char* literal) {
     pValNode->node.resType.bytes = lenStr + VARSTR_HEADER_SIZE;
     char* p = taosMemoryMalloc(lenStr + 1  + VARSTR_HEADER_SIZE);
     if (p == NULL) {
-      return NULL;
+      return TSDB_CODE_OUT_OF_MEMORY;
     }
     varDataSetLen(p, lenStr);
     memcpy(varDataVal(p), literal, lenStr + 1);
@@ -2707,8 +2722,9 @@ SValueNode* nodesMakeValueNodeFromString(char* literal) {
     pValNode->literal = tstrdup(literal);
     pValNode->translate = true;
     pValNode->isNull = false;
+    *ppValNode = pValNode;
   }
-  return pValNode;
+  return code;
 }
 
 int32_t nodesMakeValueNodeFromBool(bool b, SValueNode** ppValNode) {

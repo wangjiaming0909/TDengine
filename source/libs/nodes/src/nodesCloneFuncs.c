@@ -47,37 +47,37 @@
     }                                              \
   } while (0)
 
-#define CLONE_NODE_FIELD(fldname)                      \
-  do {                                                 \
-    if (NULL == (pSrc)->fldname) {                     \
-      break;                                           \
-    }                                                  \
-    (pDst)->fldname = nodesCloneNode((pSrc)->fldname); \
-    if (NULL == (pDst)->fldname) {                     \
-      return TSDB_CODE_OUT_OF_MEMORY;                  \
-    }                                                  \
+#define CLONE_NODE_FIELD(fldname)                                       \
+  do {                                                                  \
+    if (NULL == (pSrc)->fldname) {                                      \
+      break;                                                            \
+    }                                                                   \
+    int32_t code = nodesCloneNode((pSrc)->fldname, &((pDst)->fldname)); \
+    if (NULL == (pDst)->fldname) {                                      \
+      return code;                                                      \
+    }                                                                   \
   } while (0)
 
-#define CLONE_NODE_FIELD_EX(fldname, nodePtrType)                           \
-  do {                                                                      \
-    if (NULL == (pSrc)->fldname) {                                          \
-      break;                                                                \
-    }                                                                       \
-    (pDst)->fldname = (nodePtrType)nodesCloneNode((SNode*)(pSrc)->fldname); \
-    if (NULL == (pDst)->fldname) {                                          \
-      return TSDB_CODE_OUT_OF_MEMORY;                                       \
-    }                                                                       \
+#define CLONE_NODE_FIELD_EX(fldname, nodePtrType)                                        \
+  do {                                                                                   \
+    if (NULL == (pSrc)->fldname) {                                                       \
+      break;                                                                             \
+    }                                                                                    \
+    int32_t code = nodesCloneNode((SNode*)(pSrc)->fldname, (SNode**)&((pDst)->fldname)); \
+    if (NULL == (pDst)->fldname) {                                                       \
+      return code;                                                                       \
+    }                                                                                    \
   } while (0)
 
-#define CLONE_NODE_LIST_FIELD(fldname)                 \
-  do {                                                 \
-    if (NULL == (pSrc)->fldname) {                     \
-      break;                                           \
-    }                                                  \
-    (pDst)->fldname = nodesCloneList((pSrc)->fldname); \
-    if (NULL == (pDst)->fldname) {                     \
-      return TSDB_CODE_OUT_OF_MEMORY;                  \
-    }                                                  \
+#define CLONE_NODE_LIST_FIELD(fldname)                                  \
+  do {                                                                  \
+    if (NULL == (pSrc)->fldname) {                                      \
+      break;                                                            \
+    }                                                                   \
+    int32_t code = nodesCloneList((pSrc)->fldname, &((pDst)->fldname)); \
+    if (NULL == (pDst)->fldname) {                                      \
+      return code;                                                      \
+    }                                                                   \
   } while (0)
 
 #define CLONE_OBJECT_FIELD(fldname, cloneFunc)    \
