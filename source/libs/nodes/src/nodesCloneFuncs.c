@@ -869,18 +869,17 @@ static int32_t setOperatorCopy(const SSetOperator* pSrc, SSetOperator* pDst) {
   return TSDB_CODE_SUCCESS;
 }
 
-SNode* nodesCloneNode(const SNode* pNode) {
+int32_t nodesCloneNode(const SNode* pNode, SNode** ppNode) {
   if (NULL == pNode) {
-    return NULL;
+    return TSDB_CODE_SUCCESS;
   }
 
-  SNode* pDst = nodesMakeNode(nodeType(pNode));
-  if (NULL == pDst) {
-    terrno = TSDB_CODE_OUT_OF_MEMORY;
-    return NULL;
+  SNode* pDst = NULL;
+  int32_t code = nodesMakeNode(nodeType(pNode), &pDst);
+  if (TSDB_CODE_SUCCESS != code) {
+    return code;
   }
 
-  int32_t code = TSDB_CODE_SUCCESS;
   switch (nodeType(pNode)) {
     case QUERY_NODE_COLUMN:
       code = columnNodeCopy((const SColumnNode*)pNode, (SColumnNode*)pDst);
@@ -1058,25 +1057,31 @@ SNode* nodesCloneNode(const SNode* pNode) {
     terrno = TSDB_CODE_OUT_OF_MEMORY;
     nodesDestroyNode(pDst);
     nodesError("nodesCloneNode failed node = %s", nodesNodeName(nodeType(pNode)));
-    return NULL;
+    return code;
   }
-  return pDst;
+  *ppNode = pDst;
+  return code;
 }
 
-SNodeList* nodesCloneList(const SNodeList* pList) {
+int32_t nodesCloneList(const SNodeList* pList, SNodeList** ppList) {
   if (NULL == pList) {
-    return NULL;
+    return TSDB_CODE_SUCCESS;
   }
 
   SNodeList* pDst = NULL;
   SNode*     pNode;
   FOREACH(pNode, pList) {
-    int32_t code = nodesListMakeStrictAppend(&pDst, nodesCloneNode(pNode));
+    SNode* pNew = NULL;
+    int32_t code = nodesCloneNode(pNode, &pNew);
     if (TSDB_CODE_SUCCESS != code) {
-      terrno = TSDB_CODE_OUT_OF_MEMORY;
       nodesDestroyList(pDst);
-      return NULL;
+      return code;
+    }
+    code = nodesListMakeStrictAppend(&pDst, pNew);
+    if (TSDB_CODE_SUCCESS != code) {
+      nodesDestroyList(pDst);
+      return code;
     }
   }
-  return pDst;
+  return TSDB_CODE_SUCCESS;
 }

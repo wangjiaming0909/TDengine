@@ -34,7 +34,7 @@ typedef struct SAuthRewriteCxt {
 
 static int32_t authQuery(SAuthCxt* pCxt, SNode* pStmt);
 
-static void setUserAuthInfo(SParseContext* pCxt, const char* pDbName, const char* pTabName, AUTH_TYPE type,
+static int32_t setUserAuthInfo(SParseContext* pCxt, const char* pDbName, const char* pTabName, AUTH_TYPE type,
                             bool isView, bool effective, SUserAuthInfo* pAuth) {
   if (effective) {
     snprintf(pAuth->user, sizeof(pAuth->user), "%s", pCxt->pEffectiveUser ? pCxt->pEffectiveUser : "");
@@ -43,12 +43,14 @@ static void setUserAuthInfo(SParseContext* pCxt, const char* pDbName, const char
   }
 
   if (NULL == pTabName) {
-    tNameSetDbName(&pAuth->tbName, pCxt->acctId, pDbName, strlen(pDbName));
+    int32_t code = tNameSetDbName(&pAuth->tbName, pCxt->acctId, pDbName, strlen(pDbName));
+    if (TSDB_CODE_SUCCESS != code) return code;
   } else {
-    toName(pCxt->acctId, pDbName, pTabName, &pAuth->tbName);
+    (void)toName(pCxt->acctId, pDbName, pTabName, &pAuth->tbName);
   }
   pAuth->type = type;
   pAuth->isView = isView;
+  return TSDB_CODE_SUCCESS;
 }
 
 static int32_t checkAuthImpl(SAuthCxt* pCxt, const char* pDbName, const char* pTabName, AUTH_TYPE type, SNode** pCond, bool isView, bool effective) {
@@ -59,8 +61,8 @@ static int32_t checkAuthImpl(SAuthCxt* pCxt, const char* pDbName, const char* pT
 
   AUTH_RES_TYPE auth_res_type = isView ? AUTH_RES_VIEW : AUTH_RES_BASIC;
   SUserAuthInfo authInfo = {0};
-  setUserAuthInfo(pCxt->pParseCxt, pDbName, pTabName, type, isView, effective, &authInfo);
-  int32_t      code = TSDB_CODE_SUCCESS;
+  int32_t code = setUserAuthInfo(pCxt->pParseCxt, pDbName, pTabName, type, isView, effective, &authInfo);
+  if (TSDB_CODE_SUCCESS != code) return code;
   SUserAuthRes authRes = {0};
   if (NULL != pCxt->pMetaCache) {
     code = getUserAuthFromCache(pCxt->pMetaCache, &authInfo, &authRes);

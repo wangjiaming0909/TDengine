@@ -417,7 +417,7 @@ static void eraseSetOpChildProjection(SSetOperator* pSetOp, int32_t index) {
     eraseSetOpChildProjection((SSetOperator*)pSetOp->pLeft, index);
   }
   SNodeList* pRightProjs = getChildProjection(pSetOp->pRight);
-  nodesListErase(pRightProjs, nodesListGetCell(pRightProjs, index));
+  (void)nodesListErase(pRightProjs, nodesListGetCell(pRightProjs, index));
   if (QUERY_NODE_SET_OPERATOR == nodeType(pSetOp->pRight)) {
     eraseSetOpChildProjection((SSetOperator*)pSetOp->pRight, index);
   }
