@@ -440,9 +440,9 @@ static int32_t collectMetaKeyFromCreateStream(SCollectMetaKeyCxt* pCxt, SCreateS
       reserveTableMetaInCache(pCxt->pParseCxt->acctId, pStmt->targetDbName, pStmt->targetTabName, pCxt->pMetaCache);
   if (TSDB_CODE_SUCCESS == code && NULL != pStmt->pSubtable && NULL != pStmt->pQuery) {
     SSelectStmt* pSelect = (SSelectStmt*)pStmt->pQuery;
-    pSelect->pSubtable = nodesCloneNode(pStmt->pSubtable);
+    int32_t code = nodesCloneNode(pStmt->pSubtable, &pSelect->pSubtable);
     if (NULL == pSelect->pSubtable) {
-      return TSDB_CODE_OUT_OF_MEMORY;
+      return code;
     }
   }
   if (TSDB_CODE_SUCCESS == code) {

@@ -545,25 +545,35 @@ bool isPartTableWinodw(SWindowLogicNode* pWindow) {
   return pWindow->isPartTb || keysHasTbname(stbGetPartKeys((SLogicNode*)nodesListGetNode(pWindow->node.pChildren, 0)));
 }
 
-bool cloneLimit(SLogicNode* pParent, SLogicNode* pChild, uint8_t cloneWhat) {
-  SLimitNode* pLimit;
-  bool cloned = false;
+int32_t cloneLimit(SLogicNode* pParent, SLogicNode* pChild, uint8_t cloneWhat, bool* pCloned) {
+  SLimitNode* pLimit = NULL, *pSlimit = NULL;
+  int32_t     code = 0;
+  bool        cloned = false;
   if (pParent->pLimit && (cloneWhat & CLONE_LIMIT)) {
-    pChild->pLimit = nodesCloneNode(pParent->pLimit);
-    pLimit = (SLimitNode*)pChild->pLimit;
-    pLimit->limit += pLimit->offset;
-    pLimit->offset = 0;
-    cloned = true;
+    code = nodesCloneNode(pParent->pLimit, (SNode**)&pLimit);
+    if (TSDB_CODE_SUCCESS == code) {
+      pLimit->limit += pLimit->offset;
+      pLimit->offset = 0;
+      cloned = true;
+    }
   }
 
   if (pParent->pSlimit && (cloneWhat & CLONE_SLIMIT)) {
-    pChild->pSlimit = nodesCloneNode(pParent->pSlimit);
-    pLimit = (SLimitNode*)pChild->pSlimit;
-    pLimit->limit += pLimit->offset;
-    pLimit->offset = 0;
-    cloned = true;
+    code = nodesCloneNode(pParent->pSlimit, (SNode**)&pSlimit);
+    if (TSDB_CODE_SUCCESS == code) {
+      pSlimit->limit += pSlimit->offset;
+      pSlimit->offset = 0;
+      cloned = true;
+    }
   }
-  return cloned;
+  if (TSDB_CODE_SUCCESS == code) {
+    pChild->pLimit = (SNode*)pLimit;
+    pChild->pSlimit = (SNode*)pSlimit;
+    *pCloned = cloned;
+  } else {
+    nodesDestroyNode((SNode*)pLimit);
+  }
+  return code;
 }
 
 static EDealRes partTagsOptHasColImpl(SNode* pNode, void* pContext) {
