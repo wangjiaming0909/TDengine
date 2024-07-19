@@ -365,7 +365,7 @@ static int32_t loadDataBlock(SOperatorInfo* pOperator, STableScanBase* pTableSca
     }
   }
 
-  // free the sma info, since it should not be involved in later computing process.
+  // free the sma info, since it should not be involved in *later computing process.
   taosMemoryFreeClear(pBlock->pBlockAgg);
 
   // try to filter data block according to current results
@@ -3453,7 +3453,8 @@ static EDealRes tagScanRewriteTagColumn(SNode** pNode, void* pContext) {
   } else if (QUERY_NODE_FUNCTION == nodeType((*pNode))) {
     SFunctionNode* pFuncNode = *(SFunctionNode**)(pNode);
     if (pFuncNode->funcType == FUNCTION_TYPE_TBNAME) {
-      pSColumnNode = (SColumnNode*)nodesMakeNode(QUERY_NODE_COLUMN);
+      pSColumnNode = NULL;
+      code = nodesMakeNode(QUERY_NODE_COLUMN, (SNode**)&pSColumnNode);
       if (NULL == pSColumnNode) {
         return DEAL_RES_ERROR;
       }

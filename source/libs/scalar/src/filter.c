@@ -4552,14 +4552,31 @@ static int32_t fltSclCollectOperatorFromNode(SNode *pNode, SArray *sclOpList) {
   SOperatorNode *pOper = (SOperatorNode *)pNode;
 
   SValueNode *valNode = (SValueNode *)pOper->pRight;
+  int32_t code = 0;
   if (IS_NUMERIC_TYPE(valNode->node.resType.type) || valNode->node.resType.type == TSDB_DATA_TYPE_TIMESTAMP) {
-    SFltSclOperator sclOp = {.colNode = (SColumnNode *)nodesCloneNode(pOper->pLeft),
-                             .valNode = (SValueNode *)nodesCloneNode(pOper->pRight),
-                             .type = pOper->opType};
-    taosArrayPush(sclOpList, &sclOp);
+    SFltSclOperator sclOp = {.colNode = NULL, .valNode = NULL, .type = pOper->opType};
+    SNode* pNew = NULL;
+    code = nodesCloneNode(pOper->pLeft, &pNew);
+    if (TSDB_CODE_SUCCESS == code) {
+      sclOp.colNode = (SColumnNode*)pNew;
+      pNew = NULL;
+      code = nodesCloneNode(pOper->pRight, &pNew);
+    }
+    if (TSDB_CODE_SUCCESS == code) {
+      sclOp.valNode = (SValueNode*)pNew;
+      if (NULL == taosArrayPush(sclOpList, &sclOp)) {
+        code = TSDB_CODE_OUT_OF_MEMORY;
+      }
+    } else {
+      nodesDestroyNode(pOper->pLeft);
+    }
+    if (TSDB_CODE_SUCCESS != code) {
+      nodesDestroyNode(pOper->pRight);
+      nodesDestroyNode(pOper->pLeft);
+    }
   }
 
-  return TSDB_CODE_SUCCESS;
+  return code;
 }
 
 static int32_t fltSclCollectOperatorsFromLogicCond(SNode *pNode, SArray *sclOpList) {
@@ -4813,9 +4830,12 @@ EConditionType filterClassifyCondition(SNode *pNode) {
                                                      : (cxt.hasTagIndexCol ? COND_TYPE_TAG_INDEX : COND_TYPE_TAG)));
 }
 
-bool filterIsMultiTableColsCond(SNode *pCond) {
-  SNodeList *pCondCols = nodesMakeList();
-  int32_t    code = nodesCollectColumnsFromNode(pCond, NULL, COLLECT_COL_TYPE_ALL, &pCondCols);
+int32_t filterIsMultiTableColsCond(SNode *pCond, bool* pRes) {
+  SNodeList *pCondCols = NULL;
+  int32_t code = nodesMakeList(&pCondCols);
+  if (TSDB_CODE_SUCCESS == code) {
+    code = nodesCollectColumnsFromNode(pCond, NULL, COLLECT_COL_TYPE_ALL, &pCondCols);
+  }
   if (code == TSDB_CODE_SUCCESS) {
     if (LIST_LENGTH(pCondCols) >= 2) {
       SColumnNode *pFirstCol = (SColumnNode *)nodesListGetNode(pCondCols, 0);
@@ -4824,13 +4844,15 @@ bool filterIsMultiTableColsCond(SNode *pCond) {
         if (strcmp(((SColumnNode *)pColNode)->dbName, pFirstCol->dbName) != 0 ||
             strcmp(((SColumnNode *)pColNode)->tableAlias, pFirstCol->tableAlias) != 0) {
           nodesDestroyList(pCondCols);
-          return true;
+          *pRes = true;
+          return code;
         }
       }
     }
     nodesDestroyList(pCondCols);
   }
-  return false;
+  *pRes = false;
+  return code;
 }
 
 static int32_t partitionLogicCond(SNode **pCondition, SNode **pPrimaryKeyCond, SNode **pTagIndexCond, SNode **pTagCond,
@@ -4845,34 +4867,58 @@ static int32_t partitionLogicCond(SNode **pCondition, SNode **pPrimaryKeyCond, S
   SNodeList *pOtherConds = NULL;
   SNode     *pCond = NULL;
   FOREACH(pCond, pLogicCond->pParameterList) {
-    if (filterIsMultiTableColsCond(pCond)) {
+    bool isMultiTbColCond = false;
+    code = filterIsMultiTableColsCond(pCond, &isMultiTbColCond);
+    if (TSDB_CODE_SUCCESS != code) {
+      break;
+    }
+    SNode* pNew = NULL;
+    if (isMultiTbColCond) {
       if (NULL != pOtherCond) {
-        code = nodesListMakeAppend(&pOtherConds, nodesCloneNode(pCond));
+        code = nodesCloneNode(pCond, &pNew);
+        if (TSDB_CODE_SUCCESS == code) {
+          code = nodesListMakeAppend(&pOtherConds, pNew);
+        }
       }
     } else {
       switch (filterClassifyCondition(pCond)) {
         case COND_TYPE_PRIMARY_KEY:
           if (NULL != pPrimaryKeyCond) {
-            code = nodesListMakeAppend(&pPrimaryKeyConds, nodesCloneNode(pCond));
+            code = nodesCloneNode(pCond, &pNew);
+            if (TSDB_CODE_SUCCESS == code) {
+              code = nodesListMakeAppend(&pPrimaryKeyConds, pNew);
+            }
           }
           break;
         case COND_TYPE_TAG_INDEX:
           if (NULL != pTagIndexCond) {
-            code = nodesListMakeAppend(&pTagIndexConds, nodesCloneNode(pCond));
+            code = nodesCloneNode(pCond, &pNew);
+            if (TSDB_CODE_SUCCESS == code) {
+              code = nodesListMakeAppend(&pTagIndexConds, pNew);
+            }
           }
           if (NULL != pTagCond) {
-            code = nodesListMakeAppend(&pTagConds, nodesCloneNode(pCond));
+            code = nodesCloneNode(pCond, &pNew);
+            if (TSDB_CODE_SUCCESS == code) {
+              code = nodesListMakeAppend(&pTagConds, pNew);
+            }
           }
           break;
         case COND_TYPE_TAG:
           if (NULL != pTagCond) {
-            code = nodesListMakeAppend(&pTagConds, nodesCloneNode(pCond));
+            code = nodesCloneNode(pCond, &pNew);
+            if (TSDB_CODE_SUCCESS == code) {
+              code = nodesListMakeAppend(&pTagConds, pNew);
+            }
           }
           break;
         case COND_TYPE_NORMAL:
         default:
           if (NULL != pOtherCond) {
-            code = nodesListMakeAppend(&pOtherConds, nodesCloneNode(pCond));
+            code = nodesCloneNode(pCond, &pNew);
+            if (TSDB_CODE_SUCCESS == code) {
+              code = nodesListMakeAppend(&pOtherConds, pNew);
+            }
           }
           break;
       }
@@ -4936,7 +4982,12 @@ int32_t filterPartitionCond(SNode **pCondition, SNode **pPrimaryKeyCond, SNode *
   }
 
   bool needOutput = false;
-  if (filterIsMultiTableColsCond(*pCondition)) {
+  bool isMultiTbColCond = false;
+  int32_t code = filterIsMultiTableColsCond(*pCondition, &isMultiTbColCond);
+  if (TSDB_CODE_SUCCESS != code) {
+    return code;
+  }
+  if (isMultiTbColCond) {
     if (NULL != pOtherCond) {
       *pOtherCond = *pCondition;
       needOutput = true;
@@ -4957,9 +5008,9 @@ int32_t filterPartitionCond(SNode **pCondition, SNode **pPrimaryKeyCond, SNode *
         if (NULL != pTagCond) {
           SNode *pTempCond = *pCondition;
           if (NULL != pTagIndexCond) {
-            pTempCond = nodesCloneNode(*pCondition);
+            code = nodesCloneNode(*pCondition, &pTempCond);
             if (NULL == pTempCond) {
-              return TSDB_CODE_OUT_OF_MEMORY;
+              return code;
             }
           }
           *pTagCond = pTempCond;
