@@ -31,8 +31,6 @@
 #define CHECK_OUT_OF_MEM(p)                                                      \
   do {                                                                           \
     if (NULL == (p)) {                                                           \
-      pCxt->errCode = TSDB_CODE_OUT_OF_MEMORY;                                   \
-      snprintf(pCxt->pQueryCxt->pMsg, pCxt->pQueryCxt->msgLen, "Out of memory"); \
       return NULL;                                                               \
     }                                                                            \
   } while (0)
@@ -389,7 +387,11 @@ SNode* createValueNode(SAstCreateContext* pCxt, int32_t dataType, const SToken* 
       (IS_VAR_DATA_TYPE(dataType) || TSDB_DATA_TYPE_TIMESTAMP == dataType)) {
     (void)trimString(pLiteral->z, pLiteral->n, val->literal, pLiteral->n);
   }
-  CHECK_OUT_OF_MEM(val->literal);
+  if(!val->literal) {
+    pCxt->errCode = TSDB_CODE_OUT_OF_MEMORY;
+    nodesDestroyNode((SNode*)val);
+    return NULL;
+  }
   val->node.resType.type = dataType;
   val->node.resType.bytes = IS_VAR_DATA_TYPE(dataType) ? strlen(val->literal) : tDataTypes[dataType].bytes;
   if (TSDB_DATA_TYPE_TIMESTAMP == dataType) {
@@ -714,7 +716,11 @@ SNode* createDurationValueNode(SAstCreateContext* pCxt, const SToken* pLiteral) 
   } else {
     val->literal = strndup(pLiteral->z, pLiteral->n);
   }
-  CHECK_OUT_OF_MEM(val->literal);
+  if (!val->literal) {
+    nodesDestroyNode((SNode*)val);
+    pCxt->errCode = TSDB_CODE_OUT_OF_MEMORY;
+    return NULL;
+  }
   val->flag |= VALUE_FLAG_IS_DURATION;
   val->translate = false;
   val->node.resType.type = TSDB_DATA_TYPE_BIGINT;
@@ -760,7 +766,11 @@ SNode* createTimeOffsetValueNode(SAstCreateContext* pCxt, const SToken* pLiteral
   } else {
     val->literal = strndup(pLiteral->z, pLiteral->n);
   }
-  CHECK_OUT_OF_MEM(val->literal);
+  if (!val->literal) {
+    nodesDestroyNode((SNode*)val);
+    pCxt->errCode = TSDB_CODE_OUT_OF_MEMORY;
+    return NULL;
+  }
   val->flag |= VALUE_FLAG_IS_TIME_OFFSET;
   val->translate = false;
   val->node.resType.type = TSDB_DATA_TYPE_BIGINT;
@@ -779,7 +789,11 @@ SNode* createDefaultDatabaseCondValue(SAstCreateContext* pCxt) {
   pCxt->errCode = nodesMakeNode(QUERY_NODE_VALUE, (SNode**)&val);
   CHECK_MAKE_NODE(val);
   val->literal = taosStrdup(pCxt->pQueryCxt->db);
-  CHECK_OUT_OF_MEM(val->literal);
+  if (!val->literal) {
+    pCxt->errCode = TSDB_CODE_OUT_OF_MEMORY;
+    nodesDestroyNode((SNode*)val);
+    return NULL;
+  }
   val->translate = false;
   val->node.resType.type = TSDB_DATA_TYPE_BINARY;
   val->node.resType.bytes = strlen(val->literal);
@@ -797,7 +811,11 @@ SNode* createPlaceholderValueNode(SAstCreateContext* pCxt, const SToken* pLitera
   pCxt->errCode = nodesMakeNode(QUERY_NODE_VALUE, (SNode**)&val);
   CHECK_MAKE_NODE(val);
   val->literal = strndup(pLiteral->z, pLiteral->n);
-  CHECK_OUT_OF_MEM(val->literal);
+  if (!val->literal) {
+    pCxt->errCode = TSDB_CODE_OUT_OF_MEMORY;
+    nodesDestroyNode((SNode*)val);
+    return NULL;
+  }
   val->placeholderNo = ++pCxt->placeholderNo;
   if (NULL == pCxt->pPlaceholderValues) {
     pCxt->pPlaceholderValues = taosArrayInit(TARRAY_MIN_SIZE, POINTER_BYTES);
@@ -863,7 +881,10 @@ SNode* createOperatorNode(SAstCreateContext* pCxt, EOperatorType type, SNode* pL
   if (OP_TYPE_MINUS == type && QUERY_NODE_VALUE == nodeType(pLeft)) {
     SValueNode* pVal = (SValueNode*)pLeft;
     char*       pNewLiteral = taosMemoryCalloc(1, strlen(pVal->literal) + 2);
-    CHECK_OUT_OF_MEM(pNewLiteral);
+    if (!pNewLiteral) {
+      pCxt->errCode = TSDB_CODE_OUT_OF_MEMORY;
+      return NULL;
+    }
     if ('+' == pVal->literal[0]) {
       sprintf(pNewLiteral, "-%s", pVal->literal + 1);
     } else if ('-' == pVal->literal[0]) {
@@ -993,7 +1014,7 @@ SNode* createNodeListNodeEx(SAstCreateContext* pCxt, SNode* p1, SNode* p2) {
   SNodeListNode* list = NULL;
   pCxt->errCode = nodesMakeNode(QUERY_NODE_NODE_LIST, (SNode**)&list);
   CHECK_MAKE_NODE(list);
-  list->pNodeList = nodesMakeList();
+  pCxt->errCode = nodesMakeList(&list->pNodeList);
   CHECK_OUT_OF_MEM(list->pNodeList);
   pCxt->errCode = nodesListAppend(list->pNodeList, p1);
   CHECK_PARSER_STATUS(pCxt);
@@ -1392,8 +1413,9 @@ SNode* addWindowOffsetClause(SAstCreateContext* pCxt, SNode* pJoin, SNode* pWinO
 SNode* createSelectStmt(SAstCreateContext* pCxt, bool isDistinct, SNodeList* pProjectionList, SNode* pTable,
                         SNodeList* pHint) {
   CHECK_PARSER_STATUS(pCxt);
-  SNode* select = createSelectStmtImpl(isDistinct, pProjectionList, pTable, pHint);
-  CHECK_OUT_OF_MEM(select);
+  SNode* select = NULL;
+  pCxt->errCode = createSelectStmtImpl(isDistinct, pProjectionList, pTable, pHint, &select);
+  CHECK_MAKE_NODE(select);
   return select;
 }
 

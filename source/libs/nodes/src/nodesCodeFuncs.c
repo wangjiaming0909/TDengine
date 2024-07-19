@@ -456,9 +456,9 @@ static int32_t nodeListToJson(SJson* pJson, const char* pName, const SNodeList* 
 static int32_t jsonToNodeListImpl(const SJson* pJsonArray, SNodeList** pList) {
   int32_t size = (NULL == pJsonArray ? 0 : tjsonGetArraySize(pJsonArray));
   if (size > 0) {
-    *pList = nodesMakeList();
+    int32_t code = nodesMakeList(pList);
     if (NULL == *pList) {
-      return TSDB_CODE_OUT_OF_MEMORY;
+      return code;
     }
   }
 

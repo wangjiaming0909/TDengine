@@ -416,17 +416,21 @@ end:
 }
 
 SQuery* smlInitHandle() {
-  SQuery* pQuery = (SQuery*)nodesMakeNode(QUERY_NODE_QUERY);
+  SQuery* pQuery = NULL;
+  int32_t code = nodesMakeNode(QUERY_NODE_QUERY, (SNode**)&pQuery);
   if (NULL == pQuery) {
+    terrno = code;
     uError("create pQuery error");
     return NULL;
   }
   pQuery->execMode = QUERY_EXEC_MODE_SCHEDULE;
   pQuery->haveResultSet = false;
   pQuery->msgType = TDMT_VND_SUBMIT;
-  SVnodeModifyOpStmt* stmt = (SVnodeModifyOpStmt*)nodesMakeNode(QUERY_NODE_VNODE_MODIFY_STMT);
+  SVnodeModifyOpStmt* stmt = NULL;
+  code = nodesMakeNode(QUERY_NODE_VNODE_MODIFY_STMT, (SNode**)&stmt);
   if (NULL == stmt) {
     uError("create SVnodeModifyOpStmt error");
+    terrno = code;
     qDestroyQuery(pQuery);
     return NULL;
   }

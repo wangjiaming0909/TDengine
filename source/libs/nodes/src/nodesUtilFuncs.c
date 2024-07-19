@@ -102,14 +102,16 @@ int32_t mergeJoinConds(SNode** ppDst, SNode** ppSrc) {
   pLogicCond->node.resType.type = TSDB_DATA_TYPE_BOOL;
   pLogicCond->node.resType.bytes = tDataTypes[TSDB_DATA_TYPE_BOOL].bytes;
   pLogicCond->condType = LOGIC_COND_TYPE_AND;
-  pLogicCond->pParameterList = nodesMakeList();
-  nodesListStrictAppend(pLogicCond->pParameterList, *ppSrc);
-  nodesListStrictAppend(pLogicCond->pParameterList, *ppDst);
-
-  *ppDst = (SNode*)pLogicCond;
-  *ppSrc = NULL;
-
-  return TSDB_CODE_SUCCESS;
+  pLogicCond->pParameterList = NULL;
+  code = nodesListMakeStrictAppend(&pLogicCond->pParameterList, *ppSrc);
+  if (TSDB_CODE_SUCCESS == code) {
+    *ppSrc = NULL;
+    code = nodesListMakeStrictAppend(&pLogicCond->pParameterList, *ppDst);
+  }
+  if (TSDB_CODE_SUCCESS  == code) {
+    *ppDst = (SNode*)pLogicCond;
+  }
+  return code;
 }
 
 
@@ -1763,8 +1765,7 @@ int32_t nodesListAppend(SNodeList* pList, SNode* pNode) {
 
 int32_t nodesListStrictAppend(SNodeList* pList, SNode* pNode) {
   if (NULL == pNode) {
-    terrno = TSDB_CODE_OUT_OF_MEMORY;
-    return TSDB_CODE_OUT_OF_MEMORY;
+    return terrno;
   }
   int32_t code = nodesListAppend(pList, pNode);
   if (TSDB_CODE_SUCCESS != code) {
@@ -1775,10 +1776,9 @@ int32_t nodesListStrictAppend(SNodeList* pList, SNode* pNode) {
 
 int32_t nodesListMakeAppend(SNodeList** pList, SNode* pNode) {
   if (NULL == *pList) {
-    *pList = nodesMakeList();
+    int32_t code = nodesMakeList(pList);
     if (NULL == *pList) {
-      terrno = TSDB_CODE_OUT_OF_MEMORY;
-      return TSDB_CODE_OUT_OF_MEMORY;
+      return code;
     }
   }
   return nodesListAppend(*pList, pNode);
@@ -1786,10 +1786,9 @@ int32_t nodesListMakeAppend(SNodeList** pList, SNode* pNode) {
 
 int32_t nodesListMakeStrictAppend(SNodeList** pList, SNode* pNode) {
   if (NULL == *pList) {
-    *pList = nodesMakeList();
+    int32_t code = nodesMakeList(pList);
     if (NULL == *pList) {
-      terrno = TSDB_CODE_OUT_OF_MEMORY;
-      return TSDB_CODE_OUT_OF_MEMORY;
+      return code;
     }
   }
   return nodesListStrictAppend(*pList, pNode);
@@ -1829,10 +1828,9 @@ int32_t nodesListStrictAppendList(SNodeList* pTarget, SNodeList* pSrc) {
 
 int32_t nodesListMakeStrictAppendList(SNodeList** pTarget, SNodeList* pSrc) {
   if (NULL == *pTarget) {
-    *pTarget = nodesMakeList();
+    int32_t code = nodesMakeList(pTarget);
     if (NULL == *pTarget) {
-      terrno = TSDB_CODE_OUT_OF_MEMORY;
-      return TSDB_CODE_OUT_OF_MEMORY;
+      return code;
     }
   }
   return nodesListStrictAppendList(*pTarget, pSrc);
@@ -1840,10 +1838,9 @@ int32_t nodesListMakeStrictAppendList(SNodeList** pTarget, SNodeList* pSrc) {
 
 int32_t    nodesListMakePushFront(SNodeList** pList, SNode* pNode) {
   if (*pList == NULL) {
-    *pList = nodesMakeList();
+    int32_t code = nodesMakeList(pList);
     if (*pList == NULL) {
-      terrno = TSDB_CODE_OUT_OF_MEMORY;
-      return TSDB_CODE_OUT_OF_MEMORY;
+      return code;
     }
   }
   return nodesListPushFront(*pList, pNode);
@@ -2310,12 +2307,18 @@ int32_t nodesCollectColumns(SSelectStmt* pSelect, ESqlClause clause, const char*
   if (NULL == pSelect || NULL == pCols) {
     return TSDB_CODE_FAILED;
   }
-
+  SNodeList * pList = NULL;
+  if (!*pCols) {
+    int32_t code = nodesMakeList(&pList);
+    if (TSDB_CODE_SUCCESS != code) {
+      return code;
+    }
+  }
   SCollectColumnsCxt cxt = {
       .errCode = TSDB_CODE_SUCCESS,
       .pTableAlias = pTableAlias,
       .collectType = type,
-      .pCols = (NULL == *pCols ? nodesMakeList() : *pCols),
+      .pCols = (NULL == *pCols ? pList : *pCols),
       .pColHash = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BINARY), true, HASH_NO_LOCK)};
   if (NULL == cxt.pCols || NULL == cxt.pColHash) {
     return TSDB_CODE_OUT_OF_MEMORY;
@@ -2342,12 +2345,20 @@ int32_t nodesCollectColumnsExt(SSelectStmt* pSelect, ESqlClause clause, SSHashOb
     return TSDB_CODE_FAILED;
   }
 
+  SNodeList * pList = NULL;
+  if (!*pCols) {
+    int32_t code = nodesMakeList(&pList);
+    if (TSDB_CODE_SUCCESS != code) {
+      return code;
+    }
+  }
+
   SCollectColumnsCxt cxt = {
       .errCode = TSDB_CODE_SUCCESS,
       .pTableAlias = NULL,
       .pMultiTableAlias = pMultiTableAlias,
       .collectType = type,
-      .pCols = (NULL == *pCols ? nodesMakeList() : *pCols),
+      .pCols = (NULL == *pCols ? pList : *pCols),
       .pColHash = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BINARY), true, HASH_NO_LOCK)};
   if (NULL == cxt.pCols || NULL == cxt.pColHash) {
     return TSDB_CODE_OUT_OF_MEMORY;
@@ -2372,11 +2383,19 @@ int32_t nodesCollectColumnsFromNode(SNode* node, const char* pTableAlias, EColle
   if (NULL == pCols) {
     return TSDB_CODE_FAILED;
   }
+  SNodeList * pList = NULL;
+  if (!*pCols) {
+    int32_t code = nodesMakeList(&pList);
+    if (TSDB_CODE_SUCCESS != code) {
+      return code;
+    }
+  }
+
   SCollectColumnsCxt cxt = {
       .errCode = TSDB_CODE_SUCCESS,
       .pTableAlias = pTableAlias,
       .collectType = type,
-      .pCols = (NULL == *pCols ? nodesMakeList() : *pCols),
+      .pCols = (NULL == *pCols ? pList : *pCols),
       .pColHash = taosHashInit(128, taosGetDefaultHashFunction(TSDB_DATA_TYPE_BINARY), true, HASH_NO_LOCK)};
   if (NULL == cxt.pCols || NULL == cxt.pColHash) {
     return TSDB_CODE_OUT_OF_MEMORY;
@@ -2468,11 +2487,17 @@ int32_t nodesCollectFuncs(SSelectStmt* pSelect, ESqlClause clause, char* tableAl
   if (NULL == pSelect || NULL == pFuncs) {
     return TSDB_CODE_FAILED;
   }
-
+  SNodeList* pList = NULL;
+  if (!*pFuncs) {
+    int32_t code = nodesMakeList(&pList);
+    if (TSDB_CODE_SUCCESS != code) {
+      return code;
+    }
+  }
   SCollectFuncsCxt cxt = {.errCode = TSDB_CODE_SUCCESS,
                           .classifier = classifier,
                           .tableAlias = tableAlias,
-                          .pFuncs = (NULL == *pFuncs ? nodesMakeList() : *pFuncs)};
+                          .pFuncs = (NULL == *pFuncs ? pList : *pFuncs)};
   if (NULL == cxt.pFuncs) {
     return TSDB_CODE_OUT_OF_MEMORY;
   }

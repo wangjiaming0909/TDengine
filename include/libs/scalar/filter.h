@@ -63,7 +63,7 @@ extern bool    filterRangeExecute(SFilterInfo *info, SColumnDataAgg *pColsAgg, i
 /* condition split interface */
 int32_t filterPartitionCond(SNode **pCondition, SNode **pPrimaryKeyCond, SNode **pTagIndexCond, SNode **pTagCond,
                             SNode **pOtherCond);
-bool filterIsMultiTableColsCond(SNode *pCond);
+int32_t filterIsMultiTableColsCond(SNode *pCond, bool* pRes);
 EConditionType filterClassifyCondition(SNode *pNode);
 
 #ifdef __cplusplus

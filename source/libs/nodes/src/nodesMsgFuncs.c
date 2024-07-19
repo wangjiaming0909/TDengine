@@ -4786,9 +4786,10 @@ static int32_t SArrayToMsg(const void* pObj, STlvEncoder* pEncoder) {
 
 
 static int32_t msgToNodeList(STlvDecoder* pDecoder, void** pObj) {
-  SNodeList* pList = nodesMakeList();
-
+  SNodeList* pList = NULL;
   int32_t code = TSDB_CODE_SUCCESS;
+  code = nodesMakeList(&pList);
+
   while (TSDB_CODE_SUCCESS == code && !tlvDecodeEnd(pDecoder)) {
     SNode* pNode = NULL;
     code = msgToNode(pDecoder, (void**)&pNode);

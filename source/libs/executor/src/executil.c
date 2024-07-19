@@ -1555,9 +1555,13 @@ void createExprFromOneNode(SExprInfo* pExp, SNode* pNode, int16_t slotId) {
 
     if (!pFuncNode->pParameterList && (memcmp(pExprNode->_function.functionName, name, len) == 0) &&
         pExprNode->_function.functionName[len] == 0) {
-      pFuncNode->pParameterList = nodesMakeList();
-      SValueNode* res = (SValueNode*)nodesMakeNode(QUERY_NODE_VALUE);
-      if (NULL == res) {  // todo handle error
+      pFuncNode->pParameterList = NULL;
+      int32_t code = nodesMakeList(&pFuncNode->pParameterList);
+      SValueNode* res = NULL;
+      if (TSDB_CODE_SUCCESS == code) {
+        code = nodesMakeNode(QUERY_NODE_VALUE, (SNode**)&res);
+      }
+      if (TSDB_CODE_SUCCESS != code) {  // todo handle error
       } else {
         res->node.resType = (SDataType){.bytes = sizeof(int64_t), .type = TSDB_DATA_TYPE_BIGINT};
         nodesListAppend(pFuncNode->pParameterList, (SNode*)res);

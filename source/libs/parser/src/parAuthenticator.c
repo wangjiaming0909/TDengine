@@ -139,9 +139,10 @@ EDealRes rewriteAuthTable(SNode* pNode, void* pContext) {
 }
 
 static int32_t rewriteAppendStableTagCond(SNode** pWhere, SNode* pTagCond, STableNode* pTable) {
-  SNode* pTagCondCopy = nodesCloneNode(pTagCond);
+  SNode* pTagCondCopy = NULL;
+  int32_t code = nodesCloneNode(pTagCond, &pTagCondCopy);
   if (NULL == pTagCondCopy) {
-    return TSDB_CODE_OUT_OF_MEMORY;
+    return code;
   }
 
   SAuthRewriteCxt cxt = {.pTarget = pTable};

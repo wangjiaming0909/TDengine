@@ -10538,7 +10538,7 @@ static int32_t createLastTsSelectStmt(char* pDb, const char* pTable, const char*
   SNode* pFunc = (SNode*)createFunction("last", pParameterList);
   if (NULL == pFunc) {
     nodesDestroyList(pParameterList);
-    return TSDB_CODE_OUT_OF_MEMORY;
+    return terrno;
   }
 
   SNodeList* pProjectionList = NULL;
@@ -10557,7 +10557,7 @@ static int32_t createLastTsSelectStmt(char* pDb, const char* pTable, const char*
   SFunctionNode* pFunc1 = createFunction("_vgid", NULL);
   if (NULL == pFunc1) {
     nodesDestroyList(pProjectionList);
-    return TSDB_CODE_OUT_OF_MEMORY;
+    return terrno;
   }
 
   snprintf(pFunc1->node.aliasName, sizeof(pFunc1->node.aliasName), "%s.%p", pFunc1->functionName, pFunc1);
@@ -10570,7 +10570,7 @@ static int32_t createLastTsSelectStmt(char* pDb, const char* pTable, const char*
   SFunctionNode* pFunc2 = createFunction("_vgver", NULL);
   if (NULL == pFunc2) {
     nodesDestroyList(pProjectionList);
-    return TSDB_CODE_OUT_OF_MEMORY;
+    return terrno;
   }
 
   snprintf(pFunc2->node.aliasName, sizeof(pFunc2->node.aliasName), "%s.%p", pFunc2->functionName, pFunc2);
@@ -12556,13 +12556,9 @@ static int32_t addShowSystemDatabasesCond(SSelectStmt* pSelect) {
   SNode*      pNameCond2 = NULL;
   SValueNode* pValNode1 = NULL, * pValNode2 = NULL;
   SNode* pNameCond = NULL;
-  pValNode1 = nodesMakeValueNodeFromString(TSDB_INFORMATION_SCHEMA_DB);
-  if (!pValNode1) {
-    code = TSDB_CODE_OUT_OF_MEMORY;
-  }
+  code = nodesMakeValueNodeFromString(TSDB_INFORMATION_SCHEMA_DB, &pValNode1);
   if (TSDB_CODE_SUCCESS == code) {
-    pValNode2 = nodesMakeValueNodeFromString(TSDB_PERFORMANCE_SCHEMA_DB);
-    if (!pValNode2) code = terrno;
+    code = nodesMakeValueNodeFromString(TSDB_PERFORMANCE_SCHEMA_DB, &pValNode2);
   }
   if (TSDB_CODE_SUCCESS == code) {
     code = createOperatorNode(OP_TYPE_EQUAL, "name", (SNode*)pValNode1, &pNameCond1);
@@ -12590,8 +12586,8 @@ static int32_t addShowSystemDatabasesCond(SSelectStmt* pSelect) {
 static int32_t addShowNormalTablesCond(SSelectStmt* pSelect) {
   SNode*      pTypeCond = NULL;
   int32_t     code = TSDB_CODE_SUCCESS;
-  SValueNode* pValNode1 = nodesMakeValueNodeFromString("NORMAL_TABLE");
-  if (!pValNode1) code = TSDB_CODE_OUT_OF_MEMORY;
+  SValueNode* pValNode1 = NULL;
+  code = nodesMakeValueNodeFromString("NORMAL_TABLE", &pValNode1);
 
   if (TSDB_CODE_SUCCESS == code)
     code = createOperatorNode(OP_TYPE_EQUAL, "type", (SNode*)pValNode1, &pTypeCond);
@@ -12606,8 +12602,8 @@ static int32_t addShowNormalTablesCond(SSelectStmt* pSelect) {
 static int32_t addShowChildTablesCond(SSelectStmt* pSelect) {
   int32_t     code = TSDB_CODE_SUCCESS;
   SNode*      pTypeCond = NULL;
-  SValueNode* pValNode1 = nodesMakeValueNodeFromString("CHILD_TABLE");
-  if (!pValNode1) code = TSDB_CODE_OUT_OF_MEMORY;
+  SValueNode* pValNode1 = NULL;
+  code = nodesMakeValueNodeFromString("CHILD_TABLE", &pValNode1);
 
   if (TSDB_CODE_SUCCESS == code)
     code = createOperatorNode(OP_TYPE_EQUAL, "type", (SNode*)pValNode1, &pTypeCond);
