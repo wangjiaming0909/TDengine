@@ -21,6 +21,7 @@
 #include "tdef.h"
 #include "thash.h"
 #include "tmd5.h"
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,6 +115,15 @@ static FORCE_INLINE int32_t taosGetTbHashVal(const char *tbname, int32_t tblen, 
     return MurmurHash3_32(tbName, offset);
   }
 }
+
+#define WJM_PRINT_LOG(rsetId, fmt, ...)                              \
+  do {                                                               \
+    if (rsetId != 6) break;                                          \
+    pid_t   __pid = getpid();                                        \
+    int64_t __tid = taosGetSelfPthreadId();                          \
+    printf("pid: %d tid: %ld " fmt "\n", __pid, __tid, __VA_ARGS__); \
+    fflush(stdout);                                                  \
+  } while (0)
 
 #define TSDB_CHECK_CODE(CODE, LINO, LABEL) \
   do {                                     \

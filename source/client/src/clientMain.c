@@ -51,6 +51,7 @@ int taos_options(TSDB_OPTION option, const void *arg, ...) {
 // this function may be called by user or system, or by both simultaneously.
 void taos_cleanup(void) {
   tscDebug("start to cleanup client environment");
+  WJM_PRINT_LOG(6, "start to do taos clean up %d", 1);
   if (atomic_val_compare_exchange_32(&sentinel, TSC_VAR_NOT_RELEASE, TSC_VAR_RELEASED) != TSC_VAR_NOT_RELEASE) {
     return;
   }

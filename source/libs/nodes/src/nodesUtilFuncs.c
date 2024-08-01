@@ -146,21 +146,32 @@ int32_t nodesInitAllocatorSet() {
 }
 
 void nodesDestroyAllocatorSet() {
+  WJM_PRINT_LOG(6, "start to destroy allocator %d", 1);
   if (g_allocatorReqRefPool >= 0) {
+    /*
     SNodeAllocator* pAllocator = taosIterateRef(g_allocatorReqRefPool, 0);
     int64_t         refId = 0;
     while (NULL != pAllocator) {
       refId = pAllocator->self;
+      WJM_PRINT_LOG(6, "start to remove ref for %ld", refId);
       taosRemoveRef(g_allocatorReqRefPool, refId);
+      WJM_PRINT_LOG(6, "removed ref for %ld", refId);
       pAllocator = taosIterateRef(g_allocatorReqRefPool, refId);
     }
+    */
     taosCloseRef(g_allocatorReqRefPool);
   }
+  WJM_PRINT_LOG(6, "destroy allocator end %d", 1);
 }
 
-int32_t nodesCreateAllocator(int64_t queryId, int32_t chunkSize, int64_t* pAllocatorId) {
+int32_t g_allocatorId() {
+  return g_allocatorReqRefPool;
+}
+
+int32_t nodesCreateAllocator(int64_t queryId, int32_t chunkSize, int64_t* pAllocatorId, void* p) {
   SNodeAllocator* pAllocator = NULL;
   int32_t         code = createNodeAllocator(chunkSize, &pAllocator);
+  WJM_PRINT_LOG(6, "rquest: %p region allocated", p);
   if (TSDB_CODE_SUCCESS == code) {
     pAllocator->self = taosAddRef(g_allocatorReqRefPool, pAllocator);
     if (pAllocator->self <= 0) {

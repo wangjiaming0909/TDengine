@@ -181,6 +181,7 @@ int64_t taosAddRef(int32_t rsetId, void *p) {
   if (pSet->nodeList[hash]) pSet->nodeList[hash]->prev = pNode;
   pSet->nodeList[hash] = pNode;
 
+  WJM_PRINT_LOG(rsetId, "resid: %d rid: %ld add ref count: %d", rsetId, rid, pNode->count);
   uTrace("rsetId:%d p:%p rid:%" PRId64 " is added, count:%d, remain count:%d", rsetId, p, rid, pSet->count,
          pNode->count);
 
@@ -246,6 +247,8 @@ void *taosAcquireRef(int32_t rsetId, int64_t rid) {
     uTrace("rsetId:%d rid:%" PRId64 " is not there, failed to acquire", rsetId, rid);
   }
 
+  WJM_PRINT_LOG(rsetId, "acquire rsetid: %d rid: %ld count: %d", rsetId, rid, pNode->count);
+
   taosUnlockList(pSet->lockedBy + hash);
 
   taosDecRsetCount(pSet);
@@ -259,6 +262,7 @@ int32_t taosReleaseRef(int32_t rsetId, int64_t rid) { return taosDecRefCount(rse
 void *taosIterateRef(int32_t rsetId, int64_t rid) {
   SRefNode *pNode = NULL;
   SRefSet  *pSet;
+  int64_t in_rid = rid;
 
   if (rsetId < 0 || rsetId >= TSDB_REF_OBJECTS) {
     uTrace("rsetId:%d rid:%" PRId64 " failed to iterate, rsetId not valid", rsetId, rid);
@@ -334,6 +338,7 @@ void *taosIterateRef(int32_t rsetId, int64_t rid) {
 
     if (pNode) {
       pNode->count++;  // acquire it
+      WJM_PRINT_LOG(rsetId, "iterator acquire rsetId: %d rid: %ld count: %d pNode.rid %ld, in_rid: %ld", rsetId, rid, pNode->count, pNode->rid, in_rid);
       newP = pNode->p;
       taosUnlockList(pSet->lockedBy + hash);
       uTrace("rsetId:%d p:%p rid:%" PRId64 " is returned", rsetId, newP, rid);
@@ -342,6 +347,7 @@ void *taosIterateRef(int32_t rsetId, int64_t rid) {
     }
 
     if (rid > 0) taosReleaseRef(rsetId, rid);  // release the current one
+    if (pNode) WJM_PRINT_LOG(rsetId, "iterator rsetId: %d rid: %ld count: %d pNode.rid: %ld", rsetId, rid, pNode->count, pNode->rid);
     if (pNode) rid = pNode->rid;
   } while (newP && pNode->removed);
 
@@ -417,8 +423,10 @@ static int32_t taosDecRefCount(int32_t rsetId, int64_t rid, int32_t remove) {
   }
 
   if (pNode) {
+    WJM_PRINT_LOG(rsetId, "before release rsetid: %d rid: %ld count: %d, remove: %d", rsetId, rid, pNode->count, remove);
     pNode->count--;
     if (remove) pNode->removed = 1;
+    WJM_PRINT_LOG(rsetId, "release rsetid: %d rid: %ld count: %d, remove: %d", rsetId, rid, pNode->count, remove);
 
     if (pNode->count <= 0) {
       if (pNode->prev) {
@@ -440,9 +448,11 @@ static int32_t taosDecRefCount(int32_t rsetId, int64_t rid, int32_t remove) {
     code = -1;
   }
 
+
   taosUnlockList(pSet->lockedBy + hash);
 
   if (released) {
+    WJM_PRINT_LOG(rsetId, "free rsetid: %d rid: %ld", rsetId, rid);
     uTrace("rsetId:%d p:%p rid:%" PRId64 " is removed, count:%d, free mem: %p", rsetId, pNode->p, rid, pSet->count,
            pNode);
     (*pSet->fp)(pNode->p);

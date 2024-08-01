@@ -251,6 +251,7 @@ typedef struct SRequestObj {
   int32_t              sqlLen;
   int64_t              self;
   char*                msgBuf;
+  char* p;
   int32_t              msgBufLen;
   int32_t              code;
   SArray*              dbList;

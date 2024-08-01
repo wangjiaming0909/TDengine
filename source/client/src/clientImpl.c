@@ -227,7 +227,7 @@ int32_t buildRequest(uint64_t connId, const char* sql, int sqlLen, void* param, 
   (*pRequest)->allocatorRefId = -1;
   if (tsQueryUseNodeAllocator && !qIsInsertValuesSql((*pRequest)->sqlstr, (*pRequest)->sqlLen)) {
     if (TSDB_CODE_SUCCESS !=
-        nodesCreateAllocator((*pRequest)->requestId, tsQueryNodeChunkSize, &((*pRequest)->allocatorRefId))) {
+        nodesCreateAllocator((*pRequest)->requestId, tsQueryNodeChunkSize, &((*pRequest)->allocatorRefId), *pRequest)) {
       tscError("%" PRId64 " failed to create node allocator, reqId:0x%" PRIx64 ", conn:%" PRId64 ", %s",
                (*pRequest)->self, (*pRequest)->requestId, pTscObj->id, sql);
       freeQueryParam(newpParam);
@@ -236,7 +236,7 @@ int32_t buildRequest(uint64_t connId, const char* sql, int sqlLen, void* param, 
       return TSDB_CODE_OUT_OF_MEMORY;
     }
   }
-
+  WJM_PRINT_LOG(6, "allocator req: %p, rid: %" PRIx64 " resourceId: %d", *pRequest, (*pRequest)->allocatorRefId, g_allocatorId());
   tscDebugL("0x%" PRIx64 " SQL: %s, reqId:0x%" PRIx64, (*pRequest)->self, (*pRequest)->sqlstr, (*pRequest)->requestId);
   return TSDB_CODE_SUCCESS;
 }
@@ -1519,7 +1519,7 @@ int32_t doProcessMsgFromServer(void* param) {
     }
   }
 
-  pSendInfo->fp(pSendInfo->param, &buf, pMsg->code);
+  int32_t code = pSendInfo->fp(pSendInfo->param, &buf, pMsg->code);
 
   if (pTscObj) {
     taosReleaseRef(clientReqRefPool, pSendInfo->requestObjRefId);
