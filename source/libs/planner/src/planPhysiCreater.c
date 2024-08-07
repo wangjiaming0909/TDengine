@@ -39,7 +39,7 @@ typedef struct SPhysiPlanContext {
   bool          hasSysScan;
 } SPhysiPlanContext;
 
-static int32_t buildSlotKeyForHash(SNode* pNode, const char* pStmtName, char** ppKey, int32_t *pLen) {
+static int32_t getSlotKey(SNode* pNode, const char* pStmtName, char** ppKey, int32_t *pLen) {
   int32_t code = 0;
   if (QUERY_NODE_COLUMN == nodeType(pNode)) {
     SColumnNode* pCol = (SColumnNode*)pNode;
@@ -103,6 +103,9 @@ static int32_t buildSlotKeyForHash(SNode* pNode, const char* pStmtName, char** p
         if (!*ppKey) {
           return terrno;
         }
+        strcat(*ppKey, pVal->literal);
+        strcat(*ppKey, ".");
+        strcat(*ppKey, ((SExprNode*)pNode)->aliasName);
         *pLen = strlen(*ppKey);
         return code;
       }
@@ -130,47 +133,6 @@ static int32_t buildSlotKeyForHash(SNode* pNode, const char* pStmtName, char** p
   return code;
 }
 
-
-static int32_t getSlotKey(SNode* pNode, const char* pStmtName, char* pKey, int32_t keyBufSize) {
-  int32_t len = 0;
-  if (QUERY_NODE_COLUMN == nodeType(pNode)) {
-    SColumnNode* pCol = (SColumnNode*)pNode;
-    if (NULL != pStmtName) {
-      if ('\0' != pStmtName[0]) {
-        len = snprintf(pKey, keyBufSize, "%s.%s", pStmtName, pCol->node.aliasName);
-        return taosCreateMD5Hash(pKey, len);
-      } else {
-        return snprintf(pKey, keyBufSize, "%s", pCol->node.aliasName);
-      }
-    }
-    if ('\0' == pCol->tableAlias[0]) {
-      return snprintf(pKey, keyBufSize, "%s", pCol->colName);
-    }
-
-    len = snprintf(pKey, keyBufSize, "%s.%s", pCol->tableAlias, pCol->colName);
-    return taosCreateMD5Hash(pKey, len);
-  } else if (QUERY_NODE_FUNCTION == nodeType(pNode)) {
-    SFunctionNode* pFunc = (SFunctionNode*)pNode;
-    if (FUNCTION_TYPE_TBNAME == pFunc->funcType) {
-      SValueNode* pVal = (SValueNode*)nodesListGetNode(pFunc->pParameterList, 0);
-      if (pVal) {
-        if (NULL != pStmtName && '\0' != pStmtName[0]) {
-          len = snprintf(pKey, keyBufSize, "%s.%s", pStmtName, ((SExprNode*)pNode)->aliasName);
-          return taosCreateMD5Hash(pKey, len);
-        }
-        len = snprintf(pKey, keyBufSize, "%s.%s", pVal->literal, ((SExprNode*)pNode)->aliasName);
-        return taosCreateMD5Hash(pKey, len);
-      }
-    }
-  }
-
-  if (NULL != pStmtName && '\0' != pStmtName[0]) {
-    len = snprintf(pKey, keyBufSize, "%s.%s", pStmtName, ((SExprNode*)pNode)->aliasName);
-    return taosCreateMD5Hash(pKey, len);
-  }
-
-  return snprintf(pKey, keyBufSize, "%s", ((SExprNode*)pNode)->aliasName);
-}
 
 static SNode* createSlotDesc(SPhysiPlanContext* pCxt, const char* pName, const SNode* pNode, int16_t slotId,
                              bool output, bool reserve) {
@@ -256,12 +218,13 @@ static int32_t buildDataBlockSlots(SPhysiPlanContext* pCxt, SNodeList* pList, SD
   FOREACH(pNode, pList) {
     char* name = NULL;
     int32_t len = 0;
-    code = buildSlotKeyForHash(pNode, NULL, &name, &len);
+    code = getSlotKey(pNode, NULL, &name, &len);
     if (TSDB_CODE_SUCCESS == code) {
       code = nodesListStrictAppend(pDataBlockDesc->pSlots, createSlotDesc(pCxt, name, pNode, slotId, true, false));
     }
     if (TSDB_CODE_SUCCESS == code) {
       code = putSlotToHash(name, len, pDataBlockDesc->dataBlockId, slotId, pNode, pHash);
+      qDebug("wjm pust slot key: %s len: %d datablockid: %d", name, len, pDataBlockDesc->dataBlockId);
     }
     taosMemoryFree(name);
     if (TSDB_CODE_SUCCESS == code) {
@@ -324,7 +287,7 @@ static int32_t addDataBlockSlotsImpl(SPhysiPlanContext* pCxt, SNodeList* pList, 
     SNode*      pExpr = QUERY_NODE_ORDER_BY_EXPR == nodeType(pNode) ? ((SOrderByExprNode*)pNode)->pExpr : pNode;
     char        *name = NULL;
     int32_t     len = 0;
-    code = buildSlotKeyForHash(pExpr, pStmtName, &name, &len);
+    code = getSlotKey(pExpr, pStmtName, &name, &len);
     if (TSDB_CODE_SUCCESS == code) {
       SSlotIndex* pIndex = taosHashGet(pHash, name, len);
       if (NULL == pIndex) {
@@ -343,8 +306,8 @@ static int32_t addDataBlockSlotsImpl(SPhysiPlanContext* pCxt, SNodeList* pList, 
         slotId = getUnsetSlotId(pIndex->pSlotIdsInfo);
       }
     }
-
-      taosMemoryFree(name);
+    qDebug("wjm node: %s add db slot impl slot id: %d dbid: %d", name, slotId, pDataBlockDesc->dataBlockId);
+    taosMemoryFree(name);
     if (TSDB_CODE_SUCCESS == code) {
       SNode* pTarget = NULL;
       code = createTarget(pNode, pDataBlockDesc->dataBlockId, slotId, &pTarget);
@@ -417,7 +380,7 @@ static EDealRes doSetSlotId(SNode* pNode, void* pContext) {
     SSetSlotIdCxt* pCxt = (SSetSlotIdCxt*)pContext;
     char           *name = NULL;
     int32_t        len = 0;
-    pCxt->errCode = buildSlotKeyForHash(pNode, NULL, &name, &len);
+    pCxt->errCode = getSlotKey(pNode, NULL, &name, &len);
     if (TSDB_CODE_SUCCESS != pCxt->errCode) {
       return DEAL_RES_ERROR;
     }
@@ -434,9 +397,10 @@ static EDealRes doSetSlotId(SNode* pNode, void* pContext) {
       taosMemoryFree(name);
       return DEAL_RES_ERROR;
     }
-    taosMemoryFree(name);
     ((SColumnNode*)pNode)->dataBlockId = pIndex->dataBlockId;
     ((SColumnNode*)pNode)->slotId = ((SSlotIdInfo*)taosArrayGet(pIndex->pSlotIdsInfo, 0))->slotId;
+    qDebug("wjm node: %s set slot id: %d dbid: %d ", name, ((SColumnNode*)pNode)->slotId, ((SColumnNode*)pNode)->dataBlockId);
+    taosMemoryFree(name);
     return DEAL_RES_IGNORE_CHILD;
   }
   return DEAL_RES_CONTINUE;
@@ -453,7 +417,7 @@ static int32_t setNodeSlotId(SPhysiPlanContext* pCxt, int16_t leftDataBlockId, i
   if (NULL == pRes) {
     return code;
   }
-
+  qDebug("wjm start to set node slot id, left dbid: %d right dbId: %d", leftDataBlockId, rightDataBlockId);
   SSetSlotIdCxt cxt = {
       .errCode = TSDB_CODE_SUCCESS,
       .pLeftHash = taosArrayGetP(pCxt->pLocationHelper, leftDataBlockId),
@@ -496,6 +460,7 @@ static int32_t setListSlotId(SPhysiPlanContext* pCxt, int16_t leftDataBlockId, i
 static SPhysiNode* makePhysiNode(SPhysiPlanContext* pCxt, SLogicNode* pLogicNode, ENodeType type) {
   SPhysiNode* pPhysiNode = NULL;
   int32_t code = nodesMakeNode(type, (SNode**)&pPhysiNode);
+  qDebug("wjm create physic node: %d", type);
   if (NULL == pPhysiNode) {
     terrno = code;
     return NULL;
@@ -1292,7 +1257,7 @@ static int32_t sortHashJoinTargets(int16_t lBlkId, int16_t rBlkId, SHashJoinPhys
       SColumnNode* pCol = (SColumnNode*)pNode;
       char *pName = NULL;
       int32_t len = 0;
-      code = buildSlotKeyForHash(pNode, NULL, &pName, &len);
+      code = getSlotKey(pNode, NULL, &pName, &len);
       if (TSDB_CODE_SUCCESS == code) {
         code = tSimpleHashPut(pHash, pName, len, &pCol, POINTER_BYTES);
       }
@@ -1310,7 +1275,7 @@ static int32_t sortHashJoinTargets(int16_t lBlkId, int16_t rBlkId, SHashJoinPhys
       char* pName = NULL;
       SColumnNode* pCol = (SColumnNode*)pNode;
       int32_t len = 0;
-      code = buildSlotKeyForHash(pNode, NULL, &pName, &len);
+      code = getSlotKey(pNode, NULL, &pName, &len);
       if (TSDB_CODE_SUCCESS == code) {
         SNode** p = tSimpleHashGet(pHash, pName, len);
         if (p) {
@@ -1331,7 +1296,7 @@ static int32_t sortHashJoinTargets(int16_t lBlkId, int16_t rBlkId, SHashJoinPhys
       char* pName = NULL;
       SColumnNode* pCol = (SColumnNode*)pNode;
       int32_t len = 0;
-      code = buildSlotKeyForHash(pNode, NULL, &pName, &len);
+      code = getSlotKey(pNode, NULL, &pName, &len);
       if (TSDB_CODE_SUCCESS == code) {
         SNode** p = tSimpleHashGet(pHash, pName, len);
         if (p) {
